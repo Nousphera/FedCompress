@@ -80,8 +80,7 @@ def create_client(cid):
 	import utils
     # Sleep few seconds to allow for GPU to setup for each client
 	sleep(int(cid)*0.75)
-	# Assign free GPU
-	os.environ['CUDA_VSIBLE_DEVICES']="0"
+	# Preserve the GPU visibility assigned by Ray to this worker.
 	# Start client
 	from client import _Client
 	return _Client(int(cid),
@@ -94,8 +93,7 @@ def create_client(cid):
 	)
 
 def create_server(run_id=0):
-	# Assign free GPU
-	os.environ['CUDA_VSIBLE_DEVICES']="0"
+	# Preserve the GPU visibility configured by the caller.
 	# Start server
 	from server import _Server
 	return _Server(run_id=run_id,

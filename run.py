@@ -1,7 +1,8 @@
 import os
 import subprocess
 import argparse
-from configs import Params
+import sys
+from configs import Params, ROOT
 os.environ['TF_CPP_MIN_LOG_LEVEL']="3"
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 os.environ['CUDA_DEVICE_ORDER']="PCI_BUS_ID"
@@ -10,7 +11,7 @@ def create_parser():
     # Create the parser
     parser = argparse.ArgumentParser(description='FedCompress arguments.')
     parser.add_argument('--datasets', nargs='+', default=['cifar10'], choices=['cifar10'], help="List of datasets to use. Default is ['cifar10'].")
-    parser.add_argument('--methods', nargs=1, default=['both'], choices=['fedcompress', 'client', 'fedavg'], help="Method to use. One of 'fedcompress', 'client', 'standard'. Default is 'both'.")
+    parser.add_argument('--methods', nargs=1, default=['fedcompress'], choices=['fedcompress', 'client', 'fedavg'], help="Method to use: 'fedcompress', 'client', or 'fedavg'. Default: 'fedcompress'.")
     return parser
 
 def main(args):
@@ -23,7 +24,7 @@ def main(args):
 			assert method in ['fedcompress','client','fedavg'], 'Parameter `method` must be one of [`fedcompress`, `client`, `fedavg`]. Provided {}.'.format(method)
 			params = Params(method=method, dataset=dataset, num_rounds=rnds[dataset])
 
-			call_cmd = ["python3", "./src/main.py",
+			call_cmd = [sys.executable, str(ROOT / 'src/main.py'),
 				"--random_id", params.random_id,
 				"--rounds", str(params.num_rounds),
 				"--clients",str(params.num_clients),
@@ -61,8 +62,11 @@ def main(args):
 			call_cmd = [c for c in call_cmd if c is not None]
 			print('\nCalling command:')
 			print(' '.join(call_cmd),'\n')
-			subprocess.call(call_cmd)
+			returncode = subprocess.run(call_cmd, cwd=ROOT).returncode
+			if returncode:
+				return returncode
+	return 0
 
 if __name__ == "__main__":
 	args = create_parser().parse_args()
-	main(args)
+	sys.exit(main(args))

@@ -1,7 +1,9 @@
-import os
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List
+
+ROOT = Path(__file__).resolve().parent
 
 @dataclass
 class Params:
@@ -38,9 +40,9 @@ class Params:
 	gpu_usage: float = 0.08
 	seed: int = 0
 	# Logging params
-	random_id: str = str(uuid.uuid4())[-10:]
-	results_dir: str = os.path.abspath('./assets/results')
-	model_dir: str = os.path.abspath('./assets/saved_models')
+	random_id: str = field(default_factory=lambda: str(uuid.uuid4())[-10:])
+	results_dir: str = str(ROOT / 'assets/results')
+	model_dir: str = str(ROOT / 'assets/saved_models')
 
 	def __post_init__(self):
 		# Adjust batch size
@@ -58,5 +60,5 @@ class Params:
 		if self.method in ['standard','client']:
 			self.server_epochs = 0
 		# Keep this last
-		self.init_model_fp = os.path.join(os.path.abspath('./assets/init_models/'),"{}_{}_random_1.h5".format(self.model,self.dataset))
+		self.init_model_fp = str(ROOT / 'assets/init_models' / "{}_{}_random_1.h5".format(self.model,self.dataset))
 

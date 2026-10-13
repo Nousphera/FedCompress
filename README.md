@@ -1,42 +1,78 @@
-# Federated Weight Clustering with Adaptive clustering
+# FedCompress
 
-Federated Learning (FL) is a promising technique for the collaborative training of deep neural networks across multiple devices while preserving data privacy. Despite its potential benefits, FL is hindered by excessive communication costs due to repeated server-client communication during training. To address this challenge, model compression techniques, such as sparsification and weight clustering are applied, which often require modifying the underlying model aggregation schemes or involve cumbersome hyperparameter tuning, with the latter not only adjusts the model's compression rate but also limits model's potential for continuous improvement over growing data. In this paper, we propose FedCompress, a novel approach that combines dynamic weight clustering and server-side knowledge distillation to reduce communication costs while learning highly generalizable models. Through a comprehensive evaluation on diverse public datasets, we demonstrate the efficacy of our approach compared to baselines in terms of communication costs and inference speed.
+Research code for **Communication-Efficient Federated Learning Through Adaptive Weight Clustering And Server-Side Distillation**, ICASSP 2024, by Vasileios Tsouvalas, Aaqib Saeed, Tanir Ozcelebi, and Nirvana Meratnia.
 
-A complete description of our work can be found in our [paper](https://ieeexplore.ieee.org/document/10447174) (and in our [arxiv](https://arxiv.org/pdf/2401.14211.pdf) version).
+FedCompress combines adaptive client-side weight clustering with server-side knowledge distillation on out-of-distribution data to reduce federated communication costs.
 
-## Dependencies
+[Paper](https://doi.org/10.1109/ICASSP48485.2024.10447174) · [arXiv](https://arxiv.org/abs/2401.14211) · [Original repository](https://github.com/FederatedML/FedCompress)
 
-Create a new Python enviroment (virtualenvs, anacoda, etc.) and install all required packages via:
+Repository history and the scope of this independent copy are recorded in [PROVENANCE.md](PROVENANCE.md).
 
-```console
-foo@bar:~$ pip install -r requirements.txt
+## Quickstart
+
+The launcher and utility tests require only Python's standard library:
+
+```bash
+git clone https://github.com/Nousphera/FedCompress.git
+cd FedCompress
+python run.py --help
+python -B -S -m unittest discover -s tests -v
 ```
 
-## Executing experiments
+Training uses the historical pinned stack in `requirements.txt` (TensorFlow GPU 2.10.1, Keras 2.10.0, Flower 1.1.0, and Ray 2.1.0). A Linux x86-64 environment with Python 3.10 is a candidate starting point based on published wheel availability; it has **not** been validated as an installable environment for the complete requirements file. Read [environment and reproduction notes](docs/REPRODUCIBILITY.md) before installation.
 
-From the `root` directory of this repo, run:
-
-```console
-# Standard FedAvg
-foo@bar:~$ ./run.py --datasets cifar10 --method fedavg
-# FedAvg + Client-side compression via weight-clustering
-foo@bar:~$ ./run.py --datasets cifar10 --method fedavg
-# FedCompress (Ours)
-foo@bar:~$ ./run.py --datasets cifar10 --method fedavg
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-> **_NOTE:_**  You can configure all federated parameters (i.e. number of federated rounds, etc.,) by adjusting them in the `configs.py` file.
+After preparing the environment and required data:
 
-## Reference
+```bash
+# FedAvg
+python run.py --datasets cifar10 --methods fedavg
+# Client-side weight clustering
+python run.py --datasets cifar10 --methods client
+# FedCompress: client clustering and server distillation
+python run.py --datasets cifar10 --methods fedcompress
+```
 
-If you use this repository, please consider citing:
+Omitting `--methods` selects `fedcompress`. These commands start full experiments, not smoke tests. The launcher currently supports CIFAR-10 and sets 100 rounds; other parameters are in `configs.py`. It resolves model/output paths relative to the repository and uses the active Python interpreter.
 
-<pre>@inproceedings{tsouvalas2024communicationefficient,
-  author={Tsouvalas, Vasileios and Saeed, Aaqib and Ozcelebi, Tanir and Meratnia, Nirvana},
-  booktitle={ICASSP 2024 - 2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
-  title={Communication-Efficient Federated Learning Through Adaptive Weight Clustering And Server-Side Distillation}, 
-  year={2024},
-  pages={5805-5809},
-  doi={10.1109/ICASSP48485.2024.10447174}
+## Methods and data
+
+| Method | Client clustering | Server distillation | Required data |
+| --- | --- | --- | --- |
+| `fedavg` | No | No | CIFAR-10 |
+| `client` | Yes | No | CIFAR-10 |
+| `fedcompress` | Yes | Yes | CIFAR-10 and external StyleGAN images |
+
+CIFAR-10 is loaded through Keras. FedCompress expects a prepared image directory at `$TFDS_DATA_DIR/raw/stylegan_oriented/`; these images and their generation recipe are not included. Set `TFDS_DATA_DIR` to your dataset root before running FedCompress. Speech Commands/LibriSpeech code is also present, but is not exposed by the launcher and requires additional external files. See [data prerequisites](docs/REPRODUCIBILITY.md#data-and-assets).
+
+The repository includes initialization weights in `assets/init_models/`. Trained checkpoints and experiment results are not included. New outputs go to `assets/saved_models/` and `assets/results/`.
+
+## Reproduction status
+
+The maintenance tests cover launcher and utility behavior. They do not validate dependency installation, data preparation, model loading, GPU/Ray execution, or reported paper results.
+
+Historical baseline-epoch settings and compression scheduling are preserved, including known caveats. Consult [the reproduction notes](docs/REPRODUCIBILITY.md#preserved-research-behavior) before comparing approaches or reproducing the paper. The model architectures, training objectives, clustering logic, and initialization assets are unchanged.
+
+## Citation
+
+Machine-readable metadata is in [CITATION.cff](CITATION.cff).
+
+```bibtex
+@inproceedings{tsouvalas2024communicationefficient,
+  author = {Tsouvalas, Vasileios and Saeed, Aaqib and Ozcelebi, Tanir and Meratnia, Nirvana},
+  title = {Communication-Efficient Federated Learning Through Adaptive Weight Clustering And Server-Side Distillation},
+  booktitle = {ICASSP 2024 - 2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  year = {2024},
+  pages = {5805--5809},
+  doi = {10.1109/ICASSP48485.2024.10447174}
 }
-</pre>
+```
+
+## License
+
+The original repository contains no license file. This copy does not add a license or grant additional permissions.

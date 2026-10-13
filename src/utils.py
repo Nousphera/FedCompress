@@ -3,9 +3,7 @@ import zipfile
 import tempfile
 import errno
 import contextlib
-import numpy as np
 import pickle
-import pandas as pd
 from time import sleep
 
 " Compute embedding from GMP layer."
@@ -33,6 +31,7 @@ def compute_score(embeddings, normalize=True):
 
 " Compute energy score on data."
 def compute_energy_score(model, data, temp=-1.0):
+	import numpy as np
 	import tensorflow as tf
 	energy_score = []
 	for (x,_) in data:
@@ -61,8 +60,10 @@ def weighted_average_train_metrics(metrics):
 		results['models_size'] = sum(results['models_sizes'])/len(results['models_sizes'])
 	# Compute validation/ood embedding scores
 	if all('embeddings' in keys for keys in metrics_keys):
+		import numpy as np
 		results['val_score'] = compute_score(np.concatenate([m['embeddings'] for _,m in metrics], axis=0))
 	if all('odd_embeddings' in keys for keys in metrics_keys):
+		import numpy as np
 		results['odd_score'] = compute_score(np.concatenate([m['odd_embeddings'] for _,m in metrics], axis=0))
 	return results
 
@@ -80,8 +81,8 @@ def set_train_metrics(config={}):
 		results['val_loss'] = config['val_loss']
 		results['val_accuracy'] = config['val_accuracy']
 	# Store train model size(s)
-	if set(['model_size','models_sizes']) <= set(config_keys):
-		results['client_model_size'] = config['model_size']
+	if set(['models_size','models_sizes']) <= set(config_keys):
+		results['client_model_size'] = config['models_size']
 		results['clients_model_size'] = config['models_sizes']
 	# Score embedding scores(s)
 	if set(['val_score']) <= set(config_keys):
@@ -143,7 +144,7 @@ def none_or_str(value):
 def none_or_int(value):
     if value == 'None':
         return None
-    return value
+    return int(value)
 
 " Create if exist without warning."
 def silentcreate(filename):
@@ -175,21 +176,28 @@ def setup(id='0', mem=12000):
 		print('No gpu available')
 
 def get_gzipped_model_size(file):
-	_, zipped_file = tempfile.mkstemp(".zip")
-	with zipfile.ZipFile(zipped_file, "w", compression=zipfile.ZIP_DEFLATED) as f:
-		f.write(file)
-	return os.path.getsize(zipped_file)/1000
-
-def get_gzipped_model_size_from_model(model):
-	with contextlib.redirect_stdout(None):
-		_, file = tempfile.mkstemp(".h5")
-		model.save(file, include_optimizer=False)
-		_, zipped_file = tempfile.mkstemp(".zip")
+	fd, zipped_file = tempfile.mkstemp(".zip")
+	os.close(fd)
+	try:
 		with zipfile.ZipFile(zipped_file, "w", compression=zipfile.ZIP_DEFLATED) as f:
 			f.write(file)
-	return os.path.getsize(zipped_file)/1000
+		return os.path.getsize(zipped_file)/1000
+	finally:
+		silentremove(zipped_file)
+
+def get_gzipped_model_size_from_model(model):
+	fd, file = tempfile.mkstemp(".h5")
+	os.close(fd)
+	try:
+		with contextlib.redirect_stdout(None):
+			model.save(file, include_optimizer=False)
+			return get_gzipped_model_size(file)
+	finally:
+		silentremove(file)
 
 def store_history(history, args, store_dir_fn=None, score_files=None):
+	import numpy as np
+	import pandas as pd
 
 	exceptions = ['num_clusters','model_size','accuracy','compression','compressed_model_size','compressed_accuracy']
 	data = history.metrics_centralized
