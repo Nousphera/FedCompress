@@ -16,3 +16,11 @@ The first four method regression fixtures failed before their fixes. No paper
 accuracy/CCR/MCR table, external StyleGAN corpus, GPU/Ray run or hardware
 inference benchmark was reproduced. Synthetic fixtures are not method efficacy
 measurements. The configured Linux CI has not been observed remotely.
+
+## Small participation regression
+
+A focused regression now constructs the actual server/strategy and checks that
+`participation=0.01` with two available clients schedules one fit instruction.
+Before the minimum-client floor, it scheduled zero. FedLN covers both its base
+server and NA-FedAvg override; FedCompress covers its compressed strategy.
+These focused checks passed after the repair.

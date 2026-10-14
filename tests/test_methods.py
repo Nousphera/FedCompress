@@ -66,3 +66,18 @@ def test_wire_payload_is_lossless_and_compresses_clustered_weights():
     for a,b in zip(arrays,utils.unpack_parameters(payload)):
         np.testing.assert_array_equal(a,b)
         assert a.dtype==b.dtype
+
+
+def test_tiny_positive_participation_schedules_one_client():
+    from types import SimpleNamespace
+    from server import _Server
+    dataset = tf.data.Dataset.from_tensor_slices((tf.zeros((2, 4)), tf.constant([0, 1]))).batch(2)
+    def model_loader(input_shape, num_classes):
+        x = tf.keras.Input(input_shape)
+        return tf.keras.Model(x, tf.keras.layers.Dense(num_classes)(x))
+    loader = lambda **kw: ((dataset, dataset), 2, 2)
+    server = _Server(model_loader, loader, num_rounds=1, num_clients=2, participation=.01)
+    manager = SimpleNamespace(num_available=lambda: 2,
+        sample=lambda num_clients, min_num_clients: [SimpleNamespace(cid=str(i)) for i in range(num_clients)])
+    instructions = server.strategy.configure_fit(1, server.strategy.initial_parameters, manager)
+    assert len(instructions) == 1
