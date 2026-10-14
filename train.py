@@ -14,8 +14,9 @@ ROOT = Path(__file__).resolve().parent
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--method', choices=['fedavg','client','fedcompress'], default='fedcompress')
-    p.add_argument('--dataset', choices=['synthetic','cifar10'], default='cifar10')
-    p.add_argument('--ood-dir', type=Path, help='Prepared unlabeled StyleGAN image directory')
+    p.add_argument('--dataset', choices=['synthetic','cifar10','cifar100','pathmnist','spcm','voxforge'], default='cifar10')
+    p.add_argument('--data-root', type=Path, default=Path('datasets'), help='TFDS cache and prepared PathMNIST root')
+    p.add_argument('--ood-dir', type=Path, help='Prepared unlabeled images or mono 16 kHz WAVs')
     p.add_argument('--output', type=Path, default=Path('runs/fedcompress'))
     p.add_argument('--clients', type=int, default=20)
     p.add_argument('--rounds', type=int, default=20)
@@ -47,9 +48,10 @@ def main(argv=None):
         p.error('Clustering needs 0 <= warmup-epochs < epochs')
     if args.method == 'fedcompress' and args.server_epochs < 1: p.error('FedCompress requires server epochs')
     if args.method == 'fedcompress' and args.dataset != 'synthetic' and (args.ood_dir is None or not args.ood_dir.is_dir()):
-        p.error('FedCompress with real data requires --ood-dir containing prepared unlabeled images')
+        p.error('FedCompress with real data requires --ood-dir containing prepared unlabeled images or WAVs')
     output = args.output.resolve()
     if output.exists() and any(output.iterdir()): p.error('Output directory must be empty or new')
+    os.environ['TFDS_DATA_DIR'] = str(args.data_root.resolve())
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['TF_NUM_INTRAOP_THREADS'] = str(args.threads)
     os.environ['TF_NUM_INTEROP_THREADS'] = str(args.threads)
@@ -62,23 +64,24 @@ def main(argv=None):
     from client import _Client
     from server import _Server
     from network import get_model
-    from data import get_cifar10
-    from data_utils import AugmentDataset
+    from data import get_cifar10, get_cifar100, get_pathmnist, get_spcm, get_voxforge
     tf.keras.utils.set_random_seed(args.seed)
     if args.device == 'cuda' and not tf.config.list_physical_devices('GPU'): p.error('CUDA requested but no TensorFlow GPU is available')
+    audio_dataset = args.dataset in ('spcm','voxforge')
+    model_loader = get_model('yamnet' if audio_dataset else 'resnet20')
     if args.dataset == 'synthetic':
         from synthetic import get_data, get_ood
         loader = functools.partial(get_data, seed=args.seed)
         ood_loader = get_ood
     else:
-        loader = functools.partial(get_cifar10, seed=args.seed)
-        def ood_loader(batch_size, seed, reshape_size):
-            ds = tf.keras.utils.image_dataset_from_directory(str(args.ood_dir.resolve()), labels=None,
-                shuffle=True, seed=seed, batch_size=batch_size, image_size=reshape_size)
-            return ds.map(lambda x: AugmentDataset.image_ood_prep(x,size=reshape_size))
+        loaders = {'cifar10':get_cifar10,'cifar100':get_cifar100,'pathmnist':get_pathmnist,
+                   'spcm':get_spcm,'voxforge':get_voxforge}
+        loader = functools.partial(loaders[args.dataset], seed=args.seed)
+        from recovered_data import load_ood_audio, load_ood_images
+        ood_loader = functools.partial(load_ood_audio if audio_dataset else load_ood_images, args.ood_dir)
     output.mkdir(parents=True,exist_ok=True)
     clustered = args.method != 'fedavg'
-    server = _Server(get_model('resnet20'),loader,args.rounds,num_clients=args.clients,participation=args.participation,
+    server = _Server(model_loader,loader,args.rounds,num_clients=args.clients,participation=args.participation,
         init_model_fp=str(args.init_model.resolve()) if args.init_model else None,
         model_save_dir=lambda compressed: str(output / ('compressed.h5' if compressed else 'aggregated.h5')),
         server_compression=args.method=='fedcompress',client_compression=clustered,
@@ -106,7 +109,7 @@ def main(argv=None):
         for proxy,instruction in strategy.configure_fit(rnd,parameters,Manager()):
             tf.keras.backend.clear_session()
             tf.keras.utils.set_random_seed(args.seed+rnd*args.clients+int(proxy.cid))
-            client=_Client(int(proxy.cid),args.clients,get_model('resnet20'),loader,args.batch_size,clustered,args.seed)
+            client=_Client(int(proxy.cid),args.clients,model_loader,loader,args.batch_size,clustered,args.seed)
             proto=serde.fit_ins_to_proto(instruction); downstream+=proto.ByteSize()
             response=client.to_client().fit(serde.fit_ins_from_proto(proto))
             proto=serde.fit_res_to_proto(response); upstream+=proto.ByteSize()

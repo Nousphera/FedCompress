@@ -349,7 +349,7 @@ class AugmentDataset:
 		# Convert to float
 		if to_float: x = tf.cast(x, tf.float32) / float(tf.int16.max)
 		# Compute mel spectrograms
-		x = __class__.logmelspectogram(x, bins=bins, sr=sr)
+		x = __class__.logmelspectogram(__class__.pad(x), bins=bins, sr=sr)
 		return x, y
 
 	@staticmethod
@@ -446,3 +446,26 @@ class LoadDataset:
 				directory=os.path.join(os.environ['TFDS_DATA_DIR'],f'raw/{name}/'),
 				label_mode=None, shuffle=False, batch_size=None, seed=0)
 		return (ds, None) if with_info else ds
+
+	@staticmethod
+	def get_cifar100(split, with_info=True):
+		if isinstance(split,List): split = split[0]
+		(train_images, train_labels), (test_images,test_labels) = tf.keras.datasets.cifar100.load_data()
+		info = {'num_classes': 100, 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
+		ds = (test_images,test_labels) if split=='test' else (train_images, train_labels)
+		return (ds, info) if with_info else ds
+
+	@staticmethod
+	def get_pathmnist(split, with_info=True, name='pathmnist'):
+		data = np.load(os.path.join(os.environ['TFDS_DATA_DIR'],f'raw/{name}/pathmnist.npz'))
+		(train_images, train_labels), (test_images,test_labels) = (data['train_images'],data['train_labels']) , (data['test_images'],data['test_labels'])
+		info = {'num_classes': len(np.unique(train_labels)), 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
+		ds = (test_images,test_labels) if split=='test' else (train_images, train_labels)
+		return (ds, info) if with_info else ds
+
+	@staticmethod
+	def get_voxforge(split, with_info=True):
+		import tensorflow_datasets as tfds
+		ds, info = tfds.load('voxforge', split=split, with_info=True, as_supervised=True, shuffle_files=False, download=False)
+		info = {'num_classes': info.features['label'].num_classes, 'num_examples': info.splits[split].num_examples}
+		return (ds, info) if with_info else ds

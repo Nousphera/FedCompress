@@ -33,11 +33,13 @@ checks execution; it is not a paper accuracy or compression result.
 | `--method client` | Yes | No |
 | `--method fedcompress` | Yes | Yes |
 
-For real training use `--dataset cifar10`; FedCompress additionally requires
-`--ood-dir /path/to/prepared/stylegan/images`. The OOD image corpus is not
-bundled. [Reproduction notes](docs/REPRODUCIBILITY.md) explain the method mapping,
+Real training supports `cifar10`, `cifar100`, `pathmnist`, `spcm` and `voxforge`.
+FedCompress additionally requires `--ood-dir` with prepared images or mono
+16 kHz WAVs. [Recovered data recipes](docs/RECOVERED_DATA.md) describe the
+inputs, optional TFDS dependencies and source provenance; corpora are not bundled.
+[Reproduction notes](docs/REPRODUCIBILITY.md) explain the method mapping,
 numerical repairs, data requirements, paper settings and transport measurements.
-The paper's other dataset/device pipelines and tables have not been reproduced.
+Full benchmark tables and device measurements have not been reproduced.
 
 Original `run.py`/`configs.py` orchestration remains for historical comparison;
 its prior pins are in `requirements-legacy.txt`. Model initialization assets,
@@ -60,7 +62,8 @@ Machine-readable metadata is in [CITATION.cff](CITATION.cff).
 
 ## License
 
-The original repository contains no license file. This copy does not add a license or grant additional permissions.
+The original repository contains no license file. This copy does not add a project-wide license or grant additional permissions.
+Third-party YAMNet attribution and Apache-2.0 terms are retained in [NOTICE](NOTICE).
 <!-- nousphera-project-resources -->
 ## Project resources
 

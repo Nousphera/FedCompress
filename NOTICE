@@ -1,0 +1,9 @@
+The original FedCompress repository does not specify a project-wide license.
+This release preserves that status.
+
+src/architectures/YAMNet.py adapts the TensorFlow Authors' YAMNet architecture.
+Copyright 2019 The TensorFlow Authors All Rights Reserved.
+Apache License, Version 2.0: licenses/YAMNet-Apache-2.0.txt.
+The original FedCompress version uses a custom classifier, configurable input
+shape and local checkpoint loading. Its implementation was retained.
+See PROVENANCE.md for the inspected upstream reference.

@@ -19,3 +19,21 @@ score plateau scheduling, compression intervals and evaluation losses are
 repaired; changes and remaining paper/source boundaries are documented in
 `docs/REPRODUCIBILITY.md`. No private dataset/history or benchmark result was
 added. No license is inferred for the original unlicensed source.
+
+## Restored dataset adapters (2026-10-15)
+
+Author source `fed_model_compress/latest`, inspected checkout HEAD
+`fb6cf7344f63e1d3e235627fe86d9d2d2113a145`; working-tree changes preserved
+in the read-only audit snapshot. Imported functions add CIFAR-100, PathMNIST
+and VoxForge; preparation/runtime repairs are disclosed in docs/RECOVERED_DATA.md.
+Source-file SHA-256:
+
+- `latest/src/data.py`: `7ef02fbb430546e0ca0319c11f517666557812c2211ba7e19f27961694e81d4f`
+- `latest/src/data_utils.py`: `d5456c21c487b4b58f1bc87562533afc991c25849db6bd36c7486de4f1248df7`
+
+Only reviewed source functions were imported; no private history, dataset,
+checkpoint or credentials were copied. Original licensing status is retained.
+
+YAMNet attribution restored from TensorFlow models, inspected upstream
+`c651073789719ff39dcf51406733bbcaaafb43f2` (`research/audioset/yamnet/yamnet.py`), Apache-2.0.
+This is an attribution reference, not proof of the original copied commit.

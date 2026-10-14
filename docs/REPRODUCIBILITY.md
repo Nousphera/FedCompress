@@ -43,12 +43,13 @@ training. `--method client` clusters locally without server self-compression.
 had different baseline epoch accounting. `--init-model` accepts an explicitly
 chosen Keras H5 model; by default initialization is seeded and random.
 
-The source supplies ResNet-20/CIFAR-10. Original SpeechCommands/YAMNet/LibriSpeech
-helpers remain under `src/`, with additional TFDS/files required, but are not
-qualified by this runner. CIFAR-100, PathMNIST and VoxForge paper pipelines,
-device deployment/quantization benchmarks and full quantitative tables are not
-included. The random nonoverlapping CIFAR partition does not implement the
-paper's separate 25% quantity-variance control.
+Recovered adapters extend the maintained runner to CIFAR-100, PathMNIST,
+SpeechCommands and VoxForge, including actual auxiliary image/WAV loading.
+See [RECOVERED_DATA.md](RECOVERED_DATA.md) for preparation, dependencies,
+source provenance and generated-data execution checks. The exact historical
+auxiliary corpus, device deployment/quantization benchmarks and full quantitative
+tables remain unavailable. The random nonoverlapping vision partition does not
+implement the paper's separate 25% quantity-variance control.
 
 ## Method correspondence and numerical repairs
 

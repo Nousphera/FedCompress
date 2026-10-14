@@ -24,3 +24,20 @@ A focused regression now constructs the actual server/strategy and checks that
 Before the minimum-client floor, it scheduled zero. FedLN covers both its base
 server and NA-FedAvg override; FedCompress covers its compressed strategy.
 These focused checks passed after the repair.
+
+## Recovered dataset adapters
+
+Five generated-data adapter tests passed (7.60 s), including real YAMNet
+optimization for SpeechCommands/VoxForge and decoded WAV scaling. Two actual
+two-client training tests passed (39.63 s): PathMNIST and VoxForge, each with
+local clustering, stock Flower messages, server self-distillation and model
+export. The CIFAR-100 class-count fixture uses generated arrays.
+
+Optional TFDS 4.9.4 / tensorflow-metadata 1.15.0 imports and builder metadata
+were checked in an isolated dependency directory against the maintained base:
+SpeechCommands 0.0.3 has 12 classes and VoxForge 1.0.0 has six; both expose
+`(audio, label)`. `pip check` passed for that combined import environment.
+No full corpus download or TFDS construction was run.
+
+The combined suite, run from the repository root, passed **26 tests in
+76.48 s** after restoration. Compiler and whitespace checks also passed.
