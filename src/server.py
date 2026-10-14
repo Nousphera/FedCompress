@@ -71,7 +71,7 @@ class _Server(fl.server.Server):
 						patience=self.cluster_search_config["patience"],
 						limit=self.cluster_search_config["limit"]/100,)
 
-				if flag: self.num_clusters+=self.cluster_search_config["cluster_update_step"]
+				if flag: self.num_clusters = min(self.cluster_search_config['max_num_clusters'], self.num_clusters+self.cluster_search_config['cluster_update_step'])
 				print(f"[Server] - Best Score: {max(self.compression_metric_dict[self.compression_metric]):0.4f}, Current Score: {metric:0.4f}, Flag: {flag}.")
 				return flag
 		return False
@@ -113,7 +113,7 @@ class _Server(fl.server.Server):
 	def set_parameters(self, parameters, config={}):
 		if not hasattr(self, 'model'):
 			self.model = self.model_loader(input_shape=self.input_shape[1:],num_classes=self.num_classes)
-		self.model.compile(metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')])
+		self.model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')])
 		if parameters is not None:
 			self.model.set_weights(parameters)
 

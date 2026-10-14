@@ -8,55 +8,40 @@ FedCompress combines adaptive client-side weight clustering with server-side kno
 
 Repository history and the scope of this independent copy are recorded in [PROVENANCE.md](PROVENANCE.md).
 
-## Quickstart
-
-The launcher and utility tests require only Python's standard library:
+## Quick start
 
 ```bash
 git clone https://github.com/Nousphera/FedCompress.git
 cd FedCompress
-python run.py --help
-python -B -S -m unittest discover -s tests -v
-```
-
-Training uses the historical pinned stack in `requirements.txt` (TensorFlow GPU 2.10.1, Keras 2.10.0, Flower 1.1.0, and Ray 2.1.0). A Linux x86-64 environment with Python 3.10 is a candidate starting point based on published wheel availability; it has **not** been validated as an installable environment for the complete requirements file. Read [environment and reproduction notes](docs/REPRODUCIBILITY.md) before installation.
-
-```bash
-python3.10 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+python train.py --dataset synthetic --clients 2 --rounds 2 \
+  --epochs 2 --warmup-epochs 1 --server-epochs 1 --batch-size 8 \
+  --min-clusters 2 --max-clusters 3 --output runs/smoke
+python -m pytest -q
 ```
 
-After preparing the environment and required data:
+The maintained CPU runner uses the original models, clients, TFMOT clustering
+and server distillation with stock Flower message serialization. It records
+actual encoded payload bytes and saves model parameters. The synthetic fixture
+checks execution; it is not a paper accuracy or compression result.
 
-```bash
-# FedAvg
-python run.py --datasets cifar10 --methods fedavg
-# Client-side weight clustering
-python run.py --datasets cifar10 --methods client
-# FedCompress: client clustering and server distillation
-python run.py --datasets cifar10 --methods fedcompress
-```
+| Method | Client clustering | Server distillation |
+| --- | --- | --- |
+| `--method fedavg` | No | No |
+| `--method client` | Yes | No |
+| `--method fedcompress` | Yes | Yes |
 
-Omitting `--methods` selects `fedcompress`. These commands start full experiments, not smoke tests. The launcher currently supports CIFAR-10 and sets 100 rounds; other parameters are in `configs.py`. It resolves model/output paths relative to the repository and uses the active Python interpreter.
+For real training use `--dataset cifar10`; FedCompress additionally requires
+`--ood-dir /path/to/prepared/stylegan/images`. The OOD image corpus is not
+bundled. [Reproduction notes](docs/REPRODUCIBILITY.md) explain the method mapping,
+numerical repairs, data requirements, paper settings and transport measurements.
+The paper's other dataset/device pipelines and tables have not been reproduced.
 
-## Methods and data
-
-| Method | Client clustering | Server distillation | Required data |
-| --- | --- | --- | --- |
-| `fedavg` | No | No | CIFAR-10 |
-| `client` | Yes | No | CIFAR-10 |
-| `fedcompress` | Yes | Yes | CIFAR-10 and external StyleGAN images |
-
-CIFAR-10 is loaded through Keras. FedCompress expects a prepared image directory at `$TFDS_DATA_DIR/raw/stylegan_oriented/`; these images and their generation recipe are not included. Set `TFDS_DATA_DIR` to your dataset root before running FedCompress. Speech Commands/LibriSpeech code is also present, but is not exposed by the launcher and requires additional external files. See [data prerequisites](docs/REPRODUCIBILITY.md#data-and-assets).
-
-The repository includes initialization weights in `assets/init_models/`. Trained checkpoints and experiment results are not included. New outputs go to `assets/saved_models/` and `assets/results/`.
-
-## Reproduction status
-
-The maintenance tests cover launcher and utility behavior. They do not validate dependency installation, data preparation, model loading, GPU/Ray execution, or reported paper results.
-
-Historical baseline-epoch settings and compression scheduling are preserved, including known caveats. Consult [the reproduction notes](docs/REPRODUCIBILITY.md#preserved-research-behavior) before comparing approaches or reproducing the paper. The model architectures, training objectives, clustering logic, and initialization assets are unchanged.
+Original `run.py`/`configs.py` orchestration remains for historical comparison;
+its prior pins are in `requirements-legacy.txt`. Model initialization assets,
+Git history and project website are preserved.
 
 ## Citation
 

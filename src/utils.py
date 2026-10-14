@@ -21,13 +21,16 @@ def compute_embeddings(model_loader, data, num_classes, weights):
 
 " Compute embedding score from SVD analysis. "
 def compute_score(embeddings, normalize=True):
-	import tensorflow as tf
+	import numpy as np
+	embeddings = np.asarray(embeddings, dtype=np.float64)
+	if embeddings.ndim != 2 or not np.isfinite(embeddings).all():
+		raise ValueError('Expected a finite matrix of embeddings')
 	if normalize:
-		embeddings = tf.math.l2_normalize(embeddings, axis=1)
-	s = tf.linalg.svd(embeddings, compute_uv=False)
-	s = s/(tf.math.reduce_sum(tf.math.abs(s)))
-	s = tf.math.exp(-(tf.math.reduce_sum(s*tf.math.log(s))))
-	return s.numpy()
+		embeddings = embeddings / np.maximum(np.linalg.norm(embeddings, axis=1, keepdims=True), 1e-12)
+	s = np.linalg.svd(embeddings, compute_uv=False)
+	if s.sum() <= 1e-12: return 0.0
+	p = s / s.sum()
+	return float(np.exp(-np.sum(p * np.log(np.maximum(p, 1e-7)))))
 
 " Compute energy score on data."
 def compute_energy_score(model, data, temp=-1.0):
@@ -58,13 +61,10 @@ def weighted_average_train_metrics(metrics):
 	if all('model_size' in keys for keys in metrics_keys):
 		results['models_sizes'] = [m["model_size"] for _, m in metrics]
 		results['models_size'] = sum(results['models_sizes'])/len(results['models_sizes'])
-	# Compute validation/ood embedding scores
-	if all('embeddings' in keys for keys in metrics_keys):
-		import numpy as np
-		results['val_score'] = compute_score(np.concatenate([m['embeddings'] for _,m in metrics], axis=0))
-	if all('odd_embeddings' in keys for keys in metrics_keys):
-		import numpy as np
-		results['odd_score'] = compute_score(np.concatenate([m['odd_embeddings'] for _,m in metrics], axis=0))
+	# Paper: compute effective rank locally, then sample-weight client scores.
+	if all('val_score' in keys for keys in metrics_keys):
+		results['val_score'] = sum(n * m['val_score'] for n,m in metrics) / sum(train_examples)
+
 	return results
 
 " Extract train metrics for a given round."
@@ -93,36 +93,19 @@ def set_train_metrics(config={}):
 
 " Set number of federated rounds to perform server-side compression."
 def set_compression_rnds(compression_step, num_rounds):
-	compression_rnds = [compression_step*i for i in range(1,(num_rounds+1)//compression_step)]
-	# Force initial compression
-	if 0 not in compression_rnds:
-		compression_rnds =  [0,] + compression_rnds
-	# Force final compression
-	if num_rounds not in compression_rnds:
-		compression_rnds = compression_rnds + [num_rounds,]
-	return compression_rnds
+	if compression_step <= 0 or num_rounds < 0:
+		raise ValueError('compression_step must be positive and num_rounds nonnegative')
+	return sorted(set([0, num_rounds, *range(compression_step, num_rounds+1, compression_step)]))
 
 " Check mechanism for increasing number of clusters."
 def compression_flag(df, init_num_clusters=8, max_num_clusters=20, init_rounds=1, patience=3, window=3, base=2, limit=0.01):
-	# Compute rolling average of metric
-	df['rolling_avg_acc'] = df['val_accuracy'].rolling(window=window, min_periods=1).mean()
-	df['rolling_avg_score'] = df['val_score'].rolling(window=window, min_periods=1).mean()
-	df['mask'] = df['rolling_avg_acc'].notna()
-	# Get current number of clusters.
-	num_clusters = df['nb_clusters'].iloc[-1]
-	# Compute metric, when enough samples exist and maximum number of clusters is not reached.
-	if df['mask'].any() and (num_clusters < max_num_clusters):
-		df['threshold_acc'] = (limit / (base*(df['nb_clusters']-(init_num_clusters))).replace(0,1))
-		df['threshold_score'] = ((10*limit) / (base*(df['nb_clusters']-(init_num_clusters))).replace(0,1))
-		df['metric_acc'] = df['rolling_avg_acc'].diff()
-		df['metric_score'] = df['rolling_avg_score'].diff()
-		df['result_acc'] = df['metric_acc'] <= df['threshold_acc']
-		df['result_score'] = df['metric_score'] <= df['threshold_score']
-		df['result'] = df['result_acc'] & df['result_score']
-		print(df)
-		if ((df['nb_clusters']==num_clusters).sum()>=patience) and (len(df) >= max(init_rounds,2)):
-			return df['result'][df['mask']].iloc[-1]
-	return False
+	"""Increase capacity after P consecutive stalled rolling score increments."""
+	if window < 1 or patience < 1: raise ValueError('window and patience must be positive')
+	if len(df) < max(init_rounds, window+patience): return False
+	current = df['nb_clusters'].iloc[-1]
+	if current >= max_num_clusters or (df['nb_clusters'] == current).sum() < patience: return False
+	progress = df['val_score'].rolling(window=window, min_periods=window).mean().diff().iloc[-patience:]
+	return bool(progress.notna().all() and (progress <= limit).all())
 
 " Get number of cluster between two boundaries based on current round."
 def get_num_clusters(rnd, init_num_clusters, compression_rnds, min_num_clusters=1):
@@ -242,3 +225,23 @@ def create_dataloader_fn(ood=False):
 	if ood:
 		return {"cifar10": data.get_stylegan, "spcm": data.get_librispeech,}
 	return {"cifar10": data.get_cifar10, "spcm": data.get_spcm,}
+
+
+def pack_parameters(parameters):
+	"""Lossless NPZ/DEFLATE payload carried as one standard uint8 ndarray."""
+	import io
+	import numpy as np
+	stream = io.BytesIO()
+	np.savez_compressed(stream, *parameters)
+	return [np.frombuffer(b'FCP1' + stream.getvalue(), dtype=np.uint8).copy()]
+
+
+def unpack_parameters(parameters):
+	import io
+	import numpy as np
+	if len(parameters) != 1 or parameters[0].dtype != np.uint8:
+		return parameters
+	payload = parameters[0].tobytes()
+	if not payload.startswith(b'FCP1'): raise ValueError('Invalid FedCompress payload header')
+	with np.load(io.BytesIO(payload[4:]), allow_pickle=False) as archive:
+		return [archive[f'arr_{i}'] for i in range(len(archive.files))]

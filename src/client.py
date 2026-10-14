@@ -29,7 +29,7 @@ class _Client(fl.client.NumPyClient):
 		)
 
 		if parameters is not None:
-			self.model.set_weights(parameters)
+			self.model.set_weights(utils.unpack_parameters(parameters))
 
 	def get_parameters(self, config={}):
 		""" Get model weights """
@@ -37,6 +37,8 @@ class _Client(fl.client.NumPyClient):
 
 	def fit(self, parameters, config):
 		results = {}
+		if config['epochs'] <= 0 and (not self.client_compression or config['compression_epochs'] <= 0):
+			raise ValueError('At least one local training epoch is required')
 
 		# Set parameters
 		self.set_parameters(parameters, config)
@@ -62,14 +64,14 @@ class _Client(fl.client.NumPyClient):
 
 		# Measure validation accuracy for elbow method.
 		metrics = self.model.evaluate(self.val_data,verbose=0)
-		results['val_loss'] = metrics[0]
-		results['val_accuracy'] = metrics[1]
-		results['num_val_samples'] = self.num_val_samples
+		results['val_loss'] = float(metrics[0])
+		results['val_accuracy'] = float(metrics[1])
+		results['num_val_samples'] = int(self.num_val_samples)
 
 		# Measure model embeddings
-		results['embeddings'] = utils.compute_embeddings(self.model_loader, self.val_data, self.num_classes, weights=self.get_parameters())
+		results['val_score'] = utils.compute_score(utils.compute_embeddings(self.model_loader, self.val_data, self.num_classes, weights=self.get_parameters()))
 
-		return self.get_parameters(), self.num_samples, results
+		return utils.pack_parameters(self.get_parameters()), self.num_samples, results
 
 	def evaluate(self, parameters, config):
 		raise NotImplementedError('Client-side evaluation is not implemented!')

@@ -6,8 +6,6 @@ import math
 import scipy
 import functools
 import tensorflow as tf
-import tensorflow_addons as tfa
-import tensorflow_datasets as tfds
 from typing import List
 from sklearn.utils.class_weight import compute_class_weight
 
@@ -376,7 +374,9 @@ class AugmentDataset:
 
 	" Cutout"
 	def cutout(images, labels=None, mask_size=(16,16)):
-		_images = tfa.image.cutout(images, mask_size=mask_size)
+		h, w = tf.shape(images)[1], tf.shape(images)[2]
+		mask = (tf.range(h)[:,None] < mask_size[0]//2) & (tf.range(w)[None,:] < mask_size[1]//2)
+		_images = tf.where(mask[None,:,:,None], tf.zeros_like(images), images)
 		if labels is None: return _images
 		return _images, labels
 
@@ -434,6 +434,7 @@ class LoadDataset:
 
 	@staticmethod
 	def get_speech_commands(split, with_info=True):
+		import tensorflow_datasets as tfds
 		ds, info = tfds.load('speech_commands', split=split, with_info=True, as_supervised=True, shuffle_files=False)
 		info = {'num_classes': info.features['label'].num_classes, 'num_examples': info.splits[split].num_examples}
 		return (ds, info) if with_info else ds

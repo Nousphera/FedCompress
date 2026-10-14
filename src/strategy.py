@@ -1,5 +1,6 @@
 import flwr as fl
 import logging
+import utils
 
 class FedCustom(fl.server.strategy.fedavg.FedAvg):
 
@@ -15,6 +16,7 @@ class FedCustom(fl.server.strategy.fedavg.FedAvg):
 			config = self.on_fit_config_fn(server_round)
 		if self.parameters is not None:
 			parameters = self.parameters
+		parameters = fl.common.ndarrays_to_parameters(utils.pack_parameters(fl.common.parameters_to_ndarrays(parameters)))
 		fit_ins = fl.common.FitIns(parameters, config)
 		# Sample clients
 		sample_size, min_num_clients = self.num_fit_clients(client_manager.num_available())
@@ -31,7 +33,7 @@ class FedCustom(fl.server.strategy.fedavg.FedAvg):
 			return None, {}
 
 		# Convert results
-		weights_results = [(fl.common.parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples) for _, fit_res in results]
+		weights_results = [(utils.unpack_parameters(fl.common.parameters_to_ndarrays(fit_res.parameters)), fit_res.num_examples) for _, fit_res in results]
 		parameters_aggregated = fl.common.ndarrays_to_parameters(fl.server.strategy.aggregate.aggregate(weights_results))
 
         # Aggregate custom metrics if aggregation fn was provided

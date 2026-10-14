@@ -10,3 +10,12 @@ This repository is an independent Nousphera copy of [FedCompress](https://github
 Maintenance changes after this baseline improve documentation, setup, and validation. They do not constitute a new reproduction of the published experiments. For the original code and configuration, inspect the baseline tag.
 
 GitHub issues, pull requests, stars, releases, and Pages configuration are not part of Git history and have not been transferred. Existing discussions remain at the source repository.
+
+## Maintained execution release (2026-10-15)
+
+`train.py` adds sequential CPU orchestration and lossless stock-Flower payloads
+around the original research components. Per-client effective-rank aggregation,
+score plateau scheduling, compression intervals and evaluation losses are
+repaired; changes and remaining paper/source boundaries are documented in
+`docs/REPRODUCIBILITY.md`. No private dataset/history or benchmark result was
+added. No license is inferred for the original unlicensed source.

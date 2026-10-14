@@ -1,64 +1,98 @@
-# Reproducibility notes
+# Reproducibility and method correspondence
 
-## Scope of validation
+## Maintained CPU environment
 
-This maintenance pass fixes launcher and utility defects in a copy of the historical research repository. It does not reproduce the experiments or establish compatibility with a current training stack.
-
-The regression suite uses Python's standard library. Launcher tests substitute a small executable child for `src/main.py`; they check actual subprocess behavior without training. Utility tests check integer timeout parsing, client-size metric recording, and cleanup of temporary model/ZIP files, including a failed model save.
+Use Python 3.11 and `pip install -r requirements.txt`. The maintained path is
+`train.py`, with TensorFlow 2.15.1, TensorFlow Model Optimization 0.7.5 and
+Flower 1.13.1. It executes original clients, clustering, distillation and server
+strategy sequentially, passing fit instructions and responses through stock
+Flower protobuf serialization. No patched Flower or Ray cluster is needed.
+`run.py`, `configs.py` and `requirements-legacy.txt` retain the older orchestration
+and environment for comparison; that Ray/GPU path is not newly validated.
 
 ```bash
-python -B -S -m unittest discover -s tests -v
+python train.py --dataset synthetic --clients 2 --rounds 2 \
+  --epochs 2 --warmup-epochs 1 --server-epochs 1 --batch-size 8 \
+  --min-clusters 2 --max-clusters 3 --output runs/smoke
+python -m pytest -q
 ```
 
-These tests were run with Python 3.14.4 on macOS. That is a test-runtime observation, not a supported training environment. TensorFlow and Flower were not installed in that environment. Installation, dataset loading, HDF5 model loading, end-to-end Flower/Ray execution, GPU behavior, and numerical results remain unverified.
+The fixture uses 32 client examples (two per client reserved for validation),
+eight test examples and eight independently generated unlabeled server images.
+It only checks execution. Use a new output directory. Outputs include
+`results.json`, `final-parameters.npz`, and final aggregated/compressed Keras H5
+models. Reports record configuration, versions, example counts, effective rank,
+cluster counts and measured serialized message bytes.
 
-## Historical environment
+## CIFAR-10 experiment
 
-`requirements.txt` is retained unchanged. Its main pins include:
+```bash
+python train.py --dataset cifar10 --method fedcompress \
+  --clients 20 --rounds 20 --epochs 10 --warmup-epochs 5 \
+  --server-epochs 10 --ood-dir /path/to/prepared/stylegan/images \
+  --output runs/cifar10-fedcompress-seed42 --seed 42
+```
 
-| Component | Version |
-| --- | --- |
-| TensorFlow GPU | 2.10.1 |
-| Keras | 2.10.0 |
-| Flower | 1.1.0 |
-| Ray | 2.1.0 |
-| TensorFlow Model Optimization | 0.7.3 |
-| TensorFlow Addons | 0.19.0 |
-| NumPy | 1.23.5 |
+CIFAR-10 downloads through Keras. Server self-compression requires actual
+unlabeled images; missing `--ood-dir` is an error. The original StyleGAN
+(Oriented) image corpus and generation recipe are not bundled. Images are
+resized to model input size and use the original CIFAR normalization/augmentation.
+`--method fedavg` runs the same total local epochs without clustering or server
+training. `--method client` clusters locally without server self-compression.
+`--epochs` always counts warmup plus clustered local training; the old launcher
+had different baseline epoch accounting. `--init-model` accepts an explicitly
+chosen Keras H5 model; by default initialization is seeded and random.
 
-PyPI's release files for [TensorFlow GPU 2.10.1](https://pypi.org/project/tensorflow-gpu/2.10.1/#files) include CPython 3.7–3.10 wheels for Linux x86-64 and Windows x86-64, and no macOS wheel. [Ray 2.1.0](https://pypi.org/project/ray/2.1.0/#files) also has a CPython 3.10 Linux x86-64 wheel. Linux x86-64 with Python 3.10 is therefore a candidate for reconstructing the environment, not a validated complete dependency solution. Wheel availability does not establish CUDA/cuDNN compatibility or successful execution.
+The source supplies ResNet-20/CIFAR-10. Original SpeechCommands/YAMNet/LibriSpeech
+helpers remain under `src/`, with additional TFDS/files required, but are not
+qualified by this runner. CIFAR-100, PathMNIST and VoxForge paper pipelines,
+device deployment/quantization benchmarks and full quantitative tables are not
+included. The random nonoverlapping CIFAR partition does not implement the
+paper's separate 25% quantity-variance control.
 
-Do not treat installing the unchanged requirements on the latest Python, TensorFlow, or Keras as supported. Record Python, OS, GPU, driver, CUDA/cuDNN, and resolved package versions when qualifying a training environment. Dependency upgrades should be evaluated separately against the original stack and results.
+## Method correspondence and numerical repairs
 
-The launcher requests a nonzero GPU fraction by default (`gpu_usage = 0.08` in `configs.py`). CPU-only experiments require explicit resource configuration and have not been tested. GPU visibility is left to the caller and Ray; the ineffective historical `CUDA_VSIBLE_DEVICES` writes were removed rather than forcing workers onto device 0.
+- Original TFMOT clustering wraps convolution kernels only; dense and batch
+  normalization weights remain unclustered. Local warmup uses cross-entropy,
+  then the original learnable-centroid clustering path. Default five warmup plus
+  five clustered epochs preserves the supplied configuration's division.
+- The newly aggregated model is the fixed teacher; a separate clustered student
+  uses temperature-scaled KL on unlabeled server images. The teacher parameters
+  remain unchanged during self-compression. This follows the paper prose; the
+  appendix pseudocode has inconsistent teacher/round assignments.
+- Each client now computes an effective-rank scalar locally, and the server
+  weights those scalars by client training examples, as the paper specifies.
+  Previously it concatenated raw client embeddings and computed a different
+  global score. Original row normalization is retained. Zero singular values
+  no longer produce NaNs; the all-zero matrix has score zero.
+- Cluster capacity increases after `--patience` consecutive changes in a
+  `--window`-round moving mean are at or below `--score-tolerance`. It is bounded
+  by `--max-clusters`. This implements the paper's score plateau criterion;
+  the old joint accuracy/score trigger is retained in Git history. The published
+  defaults are window 3 and patience 3. The precise tolerance remains a run
+  parameter and must be recorded.
+- Server compression includes every configured interval, initialization and
+  the final round. Loss is now compiled for post-clustering/server evaluation.
+- Native TensorFlow operations preserve the original fixed-origin cutout,
+  removing the unused Addons installation requirement for vision.
 
-## Data and assets
+These fixes can change numerical results. `federatedml-baseline` and
+[HISTORICAL_AUDIT.md](HISTORICAL_AUDIT.md) retain the earlier behavior/audit.
+No old accuracy, compression or inference measurement was regenerated.
 
-| Input | Loader expectation | Included? |
-| --- | --- | --- |
-| CIFAR-10 | Keras `cifar10.load_data()`, which can download/cache the dataset | No |
-| StyleGAN images | Image files under `$TFDS_DATA_DIR/raw/stylegan_oriented/` | No |
-| Speech Commands | TensorFlow Datasets `speech_commands` | No |
-| Speech training labels | `$TFDS_DATA_DIR/speech_commands/train_labels.npy`, aligned to the loader's training order | No |
-| LibriSpeech audio | Audio files under `$TFDS_DATA_DIR/raw/librispeech/` | No |
-| ResNet20 initialization | `assets/init_models/resnet20_cifar10_random_1.h5` | Yes |
-| YAMNet initialization | `assets/init_models/yamnet_spcm_random_1.h5` | Yes |
+## Actual transport versus model-size estimates
 
-Set `TFDS_DATA_DIR` to an absolute dataset-root path for the external loaders. The source does not supply the StyleGAN generation configuration, an exact external-data manifest, or the Speech Commands label-array preparation procedure. Merely placing arbitrary images/audio in these directories does not reproduce the paper's data.
+Both directions use a lossless NPZ/DEFLATE payload inside a standard Flower
+uint8 ndarray. This preserves shapes/dtypes and lets repeated clustered weights
+compress without modifying Flower. `upstream_protobuf_bytes` and
+`downstream_protobuf_bytes` count the actual serialized fit messages, including
+metadata. They are local serialization measurements, not network latency.
+The original zipped H5 size metric is retained separately; it is an artifact-size
+estimate, not the measured communication cost. Neither metric is automatically
+the paper's reported CCR/MCR or a hardware inference speedup.
 
-The high-level launcher only accepts `cifar10`. Speech code and its initialization asset remain available for research inspection, but are not advertised as an independently verified command-line workflow.
+## Licensing and provenance
 
-The two `.h5` files are initialization assets, not published trained checkpoints. Their file format was inspected; their contents were not loaded by TensorFlow in this pass. `assets/saved_models/` and `assets/results/` originally contain directory placeholders. Preserve run arguments, random seed, data provenance and environment details alongside any new results.
-
-## Preserved research behavior
-
-- **Baseline epochs:** `run.py --methods fedavg` passes `method='fedavg'` to `Params`. The historical `Params.__post_init__` adjustment is keyed to `'standard'`, so the launcher retains five ordinary local epochs for FedAvg, while `client`/`fedcompress` retain five ordinary plus five compression epochs. The `'standard'` configuration would instead combine the epochs into ten ordinary epochs, but the launcher does not select it. This discrepancy is documented rather than silently changing baseline comparisons.
-- **Compression schedule:** `set_compression_rnds` retains its original range calculation. For `compression_step=3, num_rounds=10`, it returns `[0, 3, 6, 10]`, skipping round 9. The default step of 1 is retained. A scheduling correction requires a separate change and experiment review.
-- **Run defaults:** `run.py` explicitly sets 100 CIFAR-10 rounds, overriding the 30-round dataclass default. `src/main.py` has its own low-level defaults; use the high-level launcher for the commands in the README. Direct invocation requires reviewing those defaults and supplying appropriate output/initialization paths.
-- **Size metric:** despite their `get_gzipped_*` names, the helpers retain the original ZIP/DEFLATE archive measurement in decimal kilobytes, including the original archive-member naming behavior. Cleanup now closes and removes temporary files; it does not replace the compression metric. Corrected key forwarding makes the existing mean and per-client size measurements appear in recorded metrics.
-
-Architectures, clustering decisions, distillation objectives, dataset partitioning, and historical dependency pins are unchanged. No new accuracy, compression-ratio, communication-cost, or inference-speed claim is made by these maintenance changes.
-
-## Citation metadata
-
-The paper title, author order, venue, year, page range and DOI in `CITATION.cff` were checked against the [Crossref record](https://api.crossref.org/works/10.1109/ICASSP48485.2024.10447174) and the [arXiv record](https://arxiv.org/abs/2401.14211). The paper's publication metadata does not establish a software license; no license has been added.
+The original source has no LICENSE file. This release does not invent a new
+license or confer third-party permissions. Original Git history and attribution
+are preserved; external libraries and datasets retain their own terms.

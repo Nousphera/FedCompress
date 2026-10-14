@@ -26,7 +26,7 @@ def self_compress(model, num_classes, model_loader, data_loader, data_shape=(32,
 		metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')], temperature=temperature)
 	trainer.fit(ood_data, epochs=epochs, verbose=0)
 	student_compressed = tfmot.clustering.keras.strip_clustering(trainer.student)
-	student_compressed.compile(metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')])
+	student_compressed.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')])
 	return student_compressed
 
 def self_compress_with_data(model, data, nb_clusters=50, epochs=5, learning_rate=1e-4):
@@ -38,5 +38,5 @@ def self_compress_with_data(model, data, nb_clusters=50, epochs=5, learning_rate
 	)
 	h = student_model.fit(data, epochs=epochs, verbose=0)
 	student_compressed = tfmot.clustering.keras.strip_clustering(student_model)
-	student_compressed.compile(metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')])
+	student_compressed.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')])
 	return student_compressed, h
