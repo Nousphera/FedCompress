@@ -419,8 +419,15 @@ class LoadDataset:
 	@staticmethod
 	def get_cifar10(split, with_info=True):
 		if isinstance(split,List): split = split[0]
-		(train_images, train_labels), (test_images,test_labels) = tf.keras.datasets.cifar10.load_data()
-		info = {'num_classes': len(np.unique(train_labels)), 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
+		from pathlib import Path
+		path = Path(os.environ.get('TFDS_DATA_DIR', 'datasets')) / 'cifar10.npz'
+		if path.exists():
+			from prepared_arrays import read_arrays
+			arrays = read_arrays(path, 'cifar10')
+			train_images, train_labels, test_images, test_labels = [arrays[k] for k in ('train_images','train_labels','test_images','test_labels')]
+		else:
+			(train_images, train_labels), (test_images,test_labels) = tf.keras.datasets.cifar10.load_data()
+		info = {'num_classes': 10, 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
 		ds = (test_images,test_labels) if split=='test' else (train_images, train_labels)
 		return (ds, info) if with_info else ds
 
@@ -466,16 +473,24 @@ class LoadDataset:
 	@staticmethod
 	def get_cifar100(split, with_info=True):
 		if isinstance(split,List): split = split[0]
-		(train_images, train_labels), (test_images,test_labels) = tf.keras.datasets.cifar100.load_data()
+		from pathlib import Path
+		path = Path(os.environ.get('TFDS_DATA_DIR', 'datasets')) / 'cifar100.npz'
+		if path.exists():
+			from prepared_arrays import read_arrays
+			arrays = read_arrays(path, 'cifar100')
+			train_images, train_labels, test_images, test_labels = [arrays[k] for k in ('train_images','train_labels','test_images','test_labels')]
+		else:
+			(train_images, train_labels), (test_images,test_labels) = tf.keras.datasets.cifar100.load_data()
 		info = {'num_classes': 100, 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
 		ds = (test_images,test_labels) if split=='test' else (train_images, train_labels)
 		return (ds, info) if with_info else ds
 
 	@staticmethod
 	def get_pathmnist(split, with_info=True, name='pathmnist'):
-		data = np.load(os.path.join(os.environ['TFDS_DATA_DIR'],f'raw/{name}/pathmnist.npz'))
+		from prepared_arrays import read_arrays
+		data = read_arrays(os.path.join(os.environ['TFDS_DATA_DIR'],f'raw/{name}/pathmnist.npz'), 'pathmnist')
 		(train_images, train_labels), (test_images,test_labels) = (data['train_images'],data['train_labels']) , (data['test_images'],data['test_labels'])
-		info = {'num_classes': len(np.unique(train_labels)), 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
+		info = {'num_classes': 9, 'num_examples': test_images.shape[0] if split=='test' else train_images.shape[0]}
 		ds = (test_images,test_labels) if split=='test' else (train_images, train_labels)
 		return (ds, info) if with_info else ds
 

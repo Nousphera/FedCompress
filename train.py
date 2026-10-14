@@ -11,7 +11,7 @@ import sys
 ROOT = Path(__file__).resolve().parent
 
 
-def main(argv=None):
+def main(argv=None, *, driver=None, client_id=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--method', choices=['fedavg','client','fedcompress'], default='fedcompress')
     p.add_argument('--dataset', choices=['synthetic','cifar10','cifar100','pathmnist','spcm','voxforge'], default='cifar10')
@@ -50,7 +50,7 @@ def main(argv=None):
     if args.method == 'fedcompress' and args.dataset != 'synthetic' and (args.ood_dir is None or not args.ood_dir.is_dir()):
         p.error('FedCompress with real data requires --ood-dir containing prepared unlabeled images or WAVs')
     output = args.output.resolve()
-    if output.exists() and any(output.iterdir()): p.error('Output directory must be empty or new')
+    if client_id is None and output.exists() and any(output.iterdir()): p.error('Output directory must be empty or new')
     os.environ['TFDS_DATA_DIR'] = str(args.data_root.resolve())
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['TF_NUM_INTRAOP_THREADS'] = str(args.threads)
@@ -81,6 +81,8 @@ def main(argv=None):
         ood_loader = functools.partial(load_ood_audio if audio_dataset else load_ood_images, args.ood_dir)
     output.mkdir(parents=True,exist_ok=True)
     clustered = args.method != 'fedavg'
+    if client_id is not None:
+        return _Client(int(client_id),args.clients,model_loader,loader,args.batch_size,clustered,args.seed)
     server = _Server(model_loader,loader,args.rounds,num_clients=args.clients,participation=args.participation,
         init_model_fp=str(args.init_model.resolve()) if args.init_model else None,
         model_save_dir=lambda compressed: str(output / ('compressed.h5' if compressed else 'aggregated.h5')),
@@ -94,10 +96,13 @@ def main(argv=None):
             'patience':args.patience,'limit':args.score_tolerance*100})
     strategy=server.strategy
     parameters=strategy.initial_parameters
-    strategy.evaluate(0,parameters)
+    if driver is None: strategy.evaluate(0,parameters)
     report={'backend':'sequential-stock-flower-npz','paper_reproduction':False,
         'config':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},
         'runtime':{'python':platform.python_version(),'tensorflow':tf.__version__,'flower':fl.__version__,'numpy':np.__version__},'rounds':[]}
+    if driver is not None:
+        from native_transport import run_native
+        return run_native(driver,server,args.rounds,args.clients,args.seed,output,report)
     class Manager:
         def num_available(self): return args.clients
         def sample(self,num_clients,min_num_clients=None):

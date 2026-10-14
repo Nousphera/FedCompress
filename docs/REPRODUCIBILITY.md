@@ -1,5 +1,10 @@
 # Reproducibility and method correspondence
 
+The native `flwr run .` path is documented in [FLOWER_APP.md](FLOWER_APP.md).
+The sequential commands below remain useful for CPU debugging; both paths reuse
+the same maintained algorithm core. [DATA_SETUP.md](DATA_SETUP.md) provides the
+current preparation/import/validation entry points.
+
 ## Maintained CPU environment
 
 Use Python 3.11 and `pip install -r requirements.txt`. The maintained path is
