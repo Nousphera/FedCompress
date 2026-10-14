@@ -76,3 +76,9 @@ Machine-readable metadata is in [CITATION.cff](CITATION.cff).
 ## License
 
 The original repository contains no license file. This copy does not add a license or grant additional permissions.
+<!-- nousphera-project-resources -->
+## Project resources
+
+[Project page](https://nousphera.github.io/FedCompress/) · [Research overview](https://nousphera.github.io/projects/fedcompress/) · [A0 poster](https://nousphera.github.io/FedCompress/poster.pdf) · [Paper](https://arxiv.org/abs/2401.14211)
+
+This repository contains the research implementation. The project page and poster summarize the published method and reported experiments; this documentation update does not claim an independent reproduction of those experiments.
