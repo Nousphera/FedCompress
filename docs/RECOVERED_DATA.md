@@ -26,11 +26,23 @@ python -m pip install -r requirements-audio.txt
   validation arrays may be present but are unused; each client reserves its
   own validation subset as in recovered source.
 - **SpeechCommands/VoxForge:** `--dataset spcm` or `--dataset voxforge`, read by
-  TensorFlow Datasets with stable file order. `--data-root DATA` selects its
-  cache. On first training load, labels are enumerated from that exact dataset
-  into `DATA/speech_commands/train_labels.npy` or `DATA/voxforge/train_labels.npy`.
-  Subsequent loads reuse them. Use a fresh root for a different dataset version;
-  an old same-length cache from another ordering cannot be detected by count.
+  TensorFlow Datasets with deterministic file order and explicit 16-file,
+  16-record interleaving. `--data-root DATA` selects its cache. Labels are
+  enumerated once per verified prepared source into
+  `DATA/{speech_commands,voxforge}/train_labels-<sha256>.npy`. The key covers
+  TFDS `info.full_name` (including configuration/version), split, ordered file
+  instructions (paths, skips, takes and shard counts), reader settings and
+  TensorFlow/TFDS versions. Each local shard's resolved path, size, nanosecond
+  modification/change times, device and inode are checked before reuse. A
+  different version, order or changed shard therefore cannot reuse a cache
+  solely because it has the same number of examples. Temporary files are
+  flushed and atomically replaced; malformed caches are rebuilt. Legacy
+  unkeyed `train_labels.npy` files are ignored and left untouched.
+  If prepared-file metadata cannot be verified (including remote shards),
+  labels are enumerated on each load without reading or writing a disk cache.
+  Keep prepared corpora unchanged while training: these are filesystem
+  identities, not full-content hashes or a concurrent dataset-update protocol.
+  Changes detected during label enumeration raise an error.
   SpeechCommands can download/build through TFDS when invoked on an empty
   cache. VoxForge must already be prepared: this reader sets `download=False`.
   Its upstream TFDS builder requires manually downloaded archives and Apache

@@ -434,10 +434,26 @@ class LoadDataset:
 
 	@staticmethod
 	def get_speech_commands(split, with_info=True):
+		return LoadDataset._get_tfds_audio('speech_commands', split, with_info)
+
+	@staticmethod
+	def _get_tfds_audio(name, split, with_info=True, **kwargs):
 		import tensorflow_datasets as tfds
-		ds, info = tfds.load('speech_commands', split=split, with_info=True, as_supervised=True, shuffle_files=False)
-		info = {'num_classes': info.features['label'].num_classes, 'num_examples': info.splits[split].num_examples}
-		return (ds, info) if with_info else ds
+		from recovered_data import prepared_tfds_identity
+		options = tf.data.Options()
+		options.deterministic = True
+		# Fix the interleave order so it is part of the label-cache identity.
+		config = tfds.ReadConfig(options=options, interleave_cycle_length=16, interleave_block_length=16)
+		ds, info = tfds.load(name, split=split, with_info=True, as_supervised=True,
+			shuffle_files=False, read_config=config, **kwargs)
+		identity = prepared_tfds_identity(info, split, {
+			'tfds_version': tfds.__version__, 'tensorflow_version': tf.__version__,
+			'interleave_cycle_length': config.interleave_cycle_length,
+			'interleave_block_length': config.interleave_block_length,
+			'deterministic': True, 'shuffle_files': False})
+		metadata = {'num_classes': info.features['label'].num_classes,
+			'num_examples': info.splits[split].num_examples, 'source_identity': identity}
+		return (ds, metadata) if with_info else ds
 
 	@staticmethod
 	def get_librispeech(split=None, with_info=True, reshape_size=None, name='librispeech'):
@@ -465,7 +481,4 @@ class LoadDataset:
 
 	@staticmethod
 	def get_voxforge(split, with_info=True):
-		import tensorflow_datasets as tfds
-		ds, info = tfds.load('voxforge', split=split, with_info=True, as_supervised=True, shuffle_files=False, download=False)
-		info = {'num_classes': info.features['label'].num_classes, 'num_examples': info.splits[split].num_examples}
-		return (ds, info) if with_info else ds
+		return LoadDataset._get_tfds_audio('voxforge', split, with_info, download=False)
