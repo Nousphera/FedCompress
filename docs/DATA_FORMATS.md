@@ -1,11 +1,7 @@
 # Dataset formats and audio caches
 
-For Speech Commands and VoxForge, add the optional audio dependencies to the
-README environment:
-
-```bash
-python -m pip install -r requirements-audio.txt
-```
+The README installation includes the Speech Commands and VoxForge dependencies
+in `requirements.txt`.
 
 ## Inputs and commands
 

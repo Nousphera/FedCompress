@@ -28,7 +28,7 @@ git clone https://github.com/Nousphera/FedCompress.git
 cd FedCompress
 python3.11 -m venv "$HOME/.venvs/fedcompress"
 source "$HOME/.venvs/fedcompress/bin/activate"
-python -m pip install -r requirements.txt -r requirements-simulation.txt
+python -m pip install -r requirements.txt
 python -m pip check
 ```
 

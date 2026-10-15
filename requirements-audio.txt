@@ -1,3 +1,0 @@
-# Optional SpeechCommands/VoxForge readers; install after requirements.txt.
-tensorflow-datasets==4.9.4
-tensorflow-metadata==1.15.0

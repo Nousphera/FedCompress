@@ -51,7 +51,6 @@ The trainer reads `datasets/raw/pathmnist/pathmnist.npz` with `--data-root datas
 ## Speech Commands and VoxForge
 
 ```bash
-python -m pip install -r requirements-audio.txt
 python scripts/prepare_data.py --dataset spcm --root datasets --download
 python scripts/prepare_data.py --dataset spcm --root datasets --validate
 ```

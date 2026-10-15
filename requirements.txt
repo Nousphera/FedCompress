@@ -1,10 +1,7 @@
-# CPU environment, Python 3.11.
-tensorflow==2.15.1
-tensorflow-model-optimization==0.7.5
-flwr==1.13.1
-numpy==1.26.4
-scikit-learn==1.6.1
-pandas==2.2.3
-pillow==12.3.0
-click>=8.1,<8.2
-pytest==8.4.2
+# Python 3.11: training, Flower simulation, audio preparation and tests.
+-e .
+# Flower 1.13 and Ray 2.10 retain TensorFlow 2.15-compatible dependencies.
+flwr[simulation]==1.13.1
+ray==2.10.0
+tensorflow-datasets==4.9.4
+tensorflow-metadata==1.15.0

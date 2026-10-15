@@ -27,5 +27,5 @@ CLI exit status with checks on training outputs.
 on Linux with Python 3.11. See each run for its commit, dependency installation,
 and test output.
 
-Audio/TFDS tests use the optional dependencies in `requirements-audio.txt`.
-Install them before running the complete optional data-adapter checks.
+Audio/TFDS dependencies are included in `requirements.txt`, so the standard
+installation also supports the data-adapter checks.
