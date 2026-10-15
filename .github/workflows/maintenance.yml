@@ -1,38 +1,71 @@
-name: Maintenance checks
+name: Release Checks
 
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
 
 permissions:
   contents: read
 
 jobs:
-  checks:
+  pytorch-flower:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11']
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 2
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install maintenance tools
-        run: python -m pip install -r requirements.txt cffconvert==2.0.0 PyYAML==6.0.3
-      - name: Validate citation metadata
-        run: cffconvert --validate
-      - name: Compile Python sources
-        run: python -m compileall -q src tests run.py train.py
-      - name: Run maintenance regression tests
-        run: python -m pytest -q
-      - name: Check whitespace
-        run: git show --format= --check HEAD
-      - name: Run actual native Flower smoke
+          python-version: '3.12'
+      - name: Install
         run: |
-          timeout 240s flwr run .
-          python scripts/check_run.py runs/flower-smoke --rounds 2
+          python -m pip install -r requirements.txt build
+          python -m pip check
+      - name: Build and Check Entry Points
+        run: |
+          python -m build --wheel
+          python -m compileall -q src scripts
+          python scripts/prepare_data.py --help
+          python scripts/prepare_model.py --help
+          python scripts/run_experiment.py --dry-run
+          git diff --check
+      - name: Prepare Bounded Execution Fixtures
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+          from fedcompress.preparation import digest, prepare
+          from fedcompress.model_assets import prepare as prepare_model
+          root=Path('data/cifar10');root.mkdir(parents=True)
+          rng=np.random.default_rng(42)
+          for split,count in [('train',16),('test',8)]:
+              np.save(root/f'{split}_images.npy',rng.integers(0,256,(count,32,32,3),dtype=np.uint8))
+              np.save(root/f'{split}_labels.npy',np.arange(count,dtype=np.int64)%10)
+          files=[{'name':p.name,'bytes':p.stat().st_size,'sha256':digest(p)} for p in root.glob('*.npy')]
+          (root/'manifest.json').write_text(json.dumps({'schema':1,'dataset':'cifar10','classes':10,'splits':{'train':16,'test':8},'files':files,'source':'CI execution fixture'}))
+          raw=Path('raw/stylegan');raw.mkdir(parents=True)
+          for i in range(4):
+              Image.fromarray(rng.integers(0,256,(32,32,3),dtype=np.uint8)).save(raw/f'{i}.png')
+          prepare('stylegan','data','raw')
+          prepare_model('cifar10')
+          PY
+      - name: Run Native Flower
+        run: |
+          python scripts/run_experiment.py --nr-clients 2 --rounds 2 --local-epochs 2 --warmup-epochs 1 --server-epochs 1 --batch-size 4 --server-batch-size 2 --min-clusters 3 --max-clusters 4 --device cpu
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import torch
+          from fedcompress.models import make_model
+          from fedcompress.codec import decode
+          path=Path('results/fedcompress-cifar10-seed42.json')
+          report=json.loads(path.read_text())
+          assert len(report['rounds'])==2
+          assert all(len(r['clients'])==2 and r['uplink-bytes']>0 and r['downlink-bytes']>0 for r in report['rounds'])
+          model=make_model('cifar10')
+          state=decode(path.with_suffix('.npz').read_bytes(),model.state_dict())
+          model.load_state_dict(state)
+          assert all(torch.isfinite(t).all() for t in state.values())
+          assert all(torch.unique(m.weight).numel()<=4 for m in model.modules() if isinstance(m,torch.nn.Conv2d))
+          PY

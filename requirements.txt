@@ -1,7 +1,1 @@
-# Python 3.11: training, Flower simulation, audio preparation and tests.
 -e .
-# Flower 1.13 and Ray 2.10 retain TensorFlow 2.15-compatible dependencies.
-flwr[simulation]==1.13.1
-ray==2.10.0
-tensorflow-datasets==4.9.4
-tensorflow-metadata==1.15.0
