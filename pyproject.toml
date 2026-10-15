@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fedcompress-research"
 version = "0.1.0"
-description = "Maintained FedCompress research implementation"
+description = "Adaptive weight clustering and server-side distillation"
 requires-python = ">=3.11,<3.12"
 dependencies = ["tensorflow==2.15.1", "tensorflow-model-optimization==0.7.5", "flwr==1.13.1", "numpy==1.26.4", "scikit-learn==1.6.1", "pandas==2.2.3", "pillow==12.3.0", "click>=8.1,<8.2", "pytest==8.4.2"]
 

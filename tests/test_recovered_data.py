@@ -1,4 +1,4 @@
-"""Recovered dataset/OOD adapters on generated files and waveforms."""
+"""Dataset and auxiliary-data adapters on generated files and waveforms."""
 import os
 os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL','3')
 os.environ.setdefault('CUDA_VISIBLE_DEVICES','-1')

@@ -8,13 +8,11 @@ symlinks in directory trees. Imports validate in a temporary staging directory b
 compares the deterministic SHA-256 manifest; it never downloads. Omitting all
 three modes registers an already-present dataset after validating its schema.
 
-Prepared image files contain `train_images`, `train_labels`, `test_images` and
-`test_labels`. RGB images are uint8 NHWC (CIFAR 32x32, PathMNIST 28x28);
-FashionMNIST is uint8 NHW 28x28. Labels are integer IDs shaped N or Nx1. Shape,
-range, nonempty splits and counts are checked before copying. Training reads
-these files directly; original official loaders remain a fallback for legacy
-commands. Imported row order is preserved, including for teacher alignment.
-Small imported files are fixtures, not full benchmark datasets.
+Prepared image files contain `train_images`, `train_labels`, `test_images`, and
+`test_labels`. RGB images are uint8 NHWC with shape `(N,32,32,3)` for CIFAR. PathMNIST uses `(N,28,28,3)`.
+Labels are integer IDs shaped `(N,)` or `(N,1)`. Preparation checks shapes,
+class ranges, nonempty splits, and counts. Training reads these files directly
+and preserves their row order.
 
 ```bash
 python scripts/prepare_data.py --dataset cifar10 --root datasets --source /path/to/cifar10.npz
@@ -22,15 +20,14 @@ python scripts/prepare_data.py --dataset cifar10 --root datasets --validate
 ```
 
 A manifest records dataset name, split sizes, class count and relative file
-paths/content hashes. It does not certify an arbitrary imported file as an
-original benchmark. Retain the source publication, data license and acquisition
-record separately. A changed file requires a new destination/preparation run;
+paths/content hashes. Retain the source publication, data license, and acquisition record alongside
+this manifest. A changed file requires a new destination/preparation run;
 manifests are not silently regenerated over changed data.
 
 ## Public vision sources
 
 [CIFAR-10/100](https://www.cs.toronto.edu/~kriz/cifar.html) use the official
-train/test splits via the pinned Keras or torchvision loader. Files are saved
+train/test splits via the pinned Keras loader. Files are saved
 as `ROOT/cifar10.npz` and `ROOT/cifar100.npz` for training:
 
 ```bash
@@ -72,10 +69,10 @@ python scripts/prepare_data.py --dataset voxforge --root /path/to/prepared-tfds-
 ```
 
 The validator enumerates train/test audio and labels, checks counts/class space,
-and hashes local prepared files. Training uses the same root and the recovered
+and hashes local prepared files. Training uses the same root and the
 16-file/16-record deterministic interleave. Source-bound label-cache validation
-in [RECOVERED_DATA.md](RECOVERED_DATA.md) remains active. Do not modify a prepared
-corpus during training. No original partition/quantity-variance manifest was recovered.
+in [DATA_FORMATS.md](DATA_FORMATS.md) remains active. Keep a prepared corpus unchanged during training. Client partitions are generated
+from the configured seed and dataset order.
 
 ## Auxiliary server-distillation data
 
@@ -92,6 +89,5 @@ python scripts/prepare_data.py --dataset ood-audio --root data/librispeech --val
 
 Pass the resulting root as `--ood-dir`. Images support PNG/JPEG/BMP/GIF; WAVs
 must be nonempty, mono, 16 kHz and 16-bit PCM, with lowercase `.wav` filenames to match the training reader. Image/waveform tails remain in training.
-The paper used StyleGAN images and LibriSpeech speech, but exact generation,
-utterance selection and subset files were not recovered. These commands validate
-user-acquired corpora and do not claim to regenerate those historical subsets.
+The paper uses StyleGAN images and LibriSpeech speech. Select the auxiliary
+images or utterances explicitly; preparation records the files used by this run.

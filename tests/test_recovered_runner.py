@@ -1,4 +1,4 @@
-"""Actual recovered vision/audio runs with supplied generated data and OOD files."""
+"""Vision/audio training with supplied generated data and auxiliary files."""
 import importlib.util
 import os
 from pathlib import Path

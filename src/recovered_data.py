@@ -1,4 +1,4 @@
-"""Preparation helpers for the recovered audio and auxiliary-data adapters."""
+"""Preparation helpers for audio and auxiliary-data adapters."""
 import os
 import hashlib
 import json

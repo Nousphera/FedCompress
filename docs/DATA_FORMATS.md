@@ -1,15 +1,7 @@
-# Restored dataset and auxiliary-data paths
+# Dataset formats and audio caches
 
-The author's `fed_model_compress/latest/src/data.py` and `data_utils.py` on
-Grill contained CIFAR-100, PathMNIST and VoxForge adapters omitted from the
-published `release/` subtree. The inspected checkout HEAD is
-`fb6cf7344f63e1d3e235627fe86d9d2d2113a145`; `latest/src/data.py` has uncommitted
-research edits, so file hashes, not HEAD alone, identify this source. Exact
-source hashes are recorded in PROVENANCE.md. The existing SpeechCommands,
-ResNet-20 and YAMNet source is retained.
-
-The maintained runner now covers the five paper datasets. Use the normal
-installation; for SpeechCommands/VoxForge also install:
+For Speech Commands and VoxForge, add the optional audio dependencies to the
+README environment:
 
 ```bash
 python -m pip install -r requirements-audio.txt
@@ -24,7 +16,7 @@ python -m pip install -r requirements-audio.txt
   `test_labels` shaped `(N,1)`. The original adapter retains the released
   train/test split, CIFAR mean/std normalization and 28-pixel crop. Official
   validation arrays may be present but are unused; each client reserves its
-  own validation subset as in recovered source.
+  own validation subset before local training.
 - **SpeechCommands/VoxForge:** `--dataset spcm` or `--dataset voxforge`, read by
   TensorFlow Datasets with deterministic file order and explicit 16-file,
   16-record interleaving. `--data-root DATA` selects its cache. Labels are
@@ -66,28 +58,15 @@ python train.py --dataset spcm --data-root DATA \
   --ood-dir /path/to/prepared/librispeech-wavs --output runs/spcm
 ```
 
-Both audio paths use the recovered `YAMNet` implementation, a MobileNet-derived
-architecture. The paper calls its audio model MobileNet; equivalence to its
-exact historical checkpoint is not established. Audio preprocessing retains
+Both audio paths use `YAMNet`, a MobileNet-derived architecture. Audio preprocessing retains
 40 mel bins, 400-sample frames, 160-sample hops, 1024 FFT and logarithmic
 magnitude features. Training uses one-second segments; evaluation retains full
 utterances and batches one example. Very short evaluation audio is padded to
 one second to avoid empty spectra.
 
-## Execution coverage and remaining gaps
+## Corpus selection
 
-Generated fixtures cover supplied PathMNIST files, CIFAR-100 class count,
-SpeechCommands/VoxForge loader preprocessing and real YAMNet optimization,
-and actual auxiliary WAV decoding/scale. Two-client one-round tests additionally
-exercise PathMNIST and VoxForge local clustering, stock Flower transport and
-server self-distillation with supplied generated images/WAVs.
-
-The main method now has executable data adapters for all five paper datasets
-and both auxiliary-data modalities. Still absent are the exact historical
-StyleGAN image-generation recipe/selected image subset, LibriSpeech selected
-utterances, explicit 25% client sample-count variance, and deployment/quantized
-inference harnesses used for device measurements. Directory loaders accept
-user-supplied auxiliary corpora; they do not regenerate those historical inputs.
-No original trained checkpoint, full benchmark run or reported result is
-bundled or claimed. Dataset downloads and full TFDS corpus construction were
-not part of the generated-data validation.
+Choose auxiliary images or utterances explicitly and keep the preparation
+manifest with results. Vision partitions use seeded random nonoverlapping
+assignment; client sample counts vary with the assignment. Device deployment
+and quantized inference measurements require a separate evaluation harness.

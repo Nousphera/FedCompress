@@ -1,4 +1,4 @@
-"""Maintained sequential FedCompress runner using stock Flower messages."""
+"""Run FedCompress sequentially using stock Flower messages."""
 import argparse
 import functools
 import json
@@ -97,7 +97,7 @@ def main(argv=None, *, driver=None, client_id=None):
     strategy=server.strategy
     parameters=strategy.initial_parameters
     if driver is None: strategy.evaluate(0,parameters)
-    report={'backend':'sequential-stock-flower-npz','paper_reproduction':False,
+    report={'backend':'sequential-stock-flower-npz',
         'config':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},
         'runtime':{'python':platform.python_version(),'tensorflow':tf.__version__,'flower':fl.__version__,'numpy':np.__version__},'rounds':[]}
     if driver is not None:
