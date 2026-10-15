@@ -4,7 +4,7 @@ Run commands from the repository root in the README's environment.
 `python scripts/prepare_data.py --help` lists datasets and modes.
 `--download` explicitly enables network acquisition; `--source` imports a safe
 NPZ or already-prepared directory. Import rejects existing destination files and
-symlinks in directory trees. `--validate` reads schema and content again and
+symlinks in directory trees. Imports validate in a temporary staging directory before publishing; failed imports leave no dataset or manifest behind. Directory imports copy only the selected dataset subtree, and auxiliary imports copy only supported media files. `--validate` reads schema and content again and
 compares the deterministic SHA-256 manifest; it never downloads. Omitting all
 three modes registers an already-present dataset after validating its schema.
 
@@ -79,7 +79,7 @@ corpus during training. No original partition/quantity-variance manifest was rec
 
 ## Auxiliary server-distillation data
 
-Import or register RGB images or mono 16 kHz PCM WAVs. The source directory is
+Import or register RGB images or mono 16 kHz 16-bit PCM WAVs. The source directory is
 copied only to a new root; existing in-place corpora can be registered without
 `--source`. Validated files are decoded and hashed:
 
@@ -91,7 +91,7 @@ python scripts/prepare_data.py --dataset ood-audio --root data/librispeech --val
 ```
 
 Pass the resulting root as `--ood-dir`. Images support PNG/JPEG/BMP/GIF; WAVs
-must be nonempty, mono and 16 kHz. Image/waveform tails remain in training.
+must be nonempty, mono, 16 kHz and 16-bit PCM, with lowercase `.wav` filenames to match the training reader. Image/waveform tails remain in training.
 The paper used StyleGAN images and LibriSpeech speech, but exact generation,
 utterance selection and subset files were not recovered. These commands validate
 user-acquired corpora and do not claim to regenerate those historical subsets.

@@ -66,3 +66,127 @@ def test_public_archive_extraction_blocks_traversal(tmp_path):
         with pytest.raises(tarfile.FilterError):
             source.extractall(tmp_path / "safe")
     assert not (tmp_path / "escaped").exists()
+
+
+def test_existing_manifest_cannot_leave_a_half_published_array(tmp_path):
+    source = tmp_path / "input.npz"
+    fixture(source)
+    target = tmp_path / "prepared"
+    target.mkdir()
+    saved = target / "cifar10.manifest.json"
+    saved.write_text('{"existing":true}')
+    with pytest.raises((ValueError, FileExistsError)):
+        prep.main(["--dataset", "cifar10", "--source", str(source), "--root", str(target)])
+    assert not (target / "cifar10.npz").exists()
+    assert saved.read_text() == '{"existing":true}'
+
+
+def test_auxiliary_import_is_bounded_and_failed_decode_leaves_no_output(tmp_path):
+    from PIL import Image
+    source = tmp_path / "raw"
+    source.mkdir()
+    Image.new("RGB", (40, 40)).save(source / "image.jpg")
+    (source / "unrelated-private.txt").write_text("not training input")
+    target = tmp_path / "prepared"
+    first = prep.main(["--dataset", "ood-images", "--source", str(source), "--root", str(target)])
+    assert prep.main(["--dataset", "ood-images", "--root", str(target), "--validate"]) == first
+    from recovered_data import load_ood_images
+    assert next(iter(load_ood_images(target, batch_size=1))).shape == (1, 32, 32, 3)
+    assert not (target / "unrelated-private.txt").exists()
+    bad = source / "image.jpg"
+    bad.write_bytes(bad.read_bytes()[:-20])
+    failed = tmp_path / "failed"
+    with pytest.raises(OSError):
+        prep.main(["--dataset", "ood-images", "--source", str(source), "--root", str(failed)])
+    assert not failed.exists()
+
+
+def test_array_publication_failure_rolls_back_both_files(tmp_path, monkeypatch):
+    source = tmp_path / "input.npz"
+    fixture(source)
+    target = tmp_path / "prepared"
+    real_link = prep.os.link
+    calls = []
+    def fail_manifest(source, destination):
+        calls.append(destination)
+        if str(destination).endswith(".manifest.json"):
+            raise OSError("publication failed")
+        return real_link(source, destination)
+    monkeypatch.setattr(prep.os, "link", fail_manifest)
+    with pytest.raises(OSError, match="publication failed"):
+        prep.main(["--dataset", "cifar10", "--source", str(source), "--root", str(target)])
+    assert len(calls) == 2
+    assert not (target / "cifar10.npz").exists()
+    assert not (target / "cifar10.manifest.json").exists()
+    assert not list(target.glob(".prepare-*"))
+
+
+def test_tfds_import_relocation_preserves_reader_and_manifest(tmp_path, monkeypatch):
+    import json
+    import tensorflow as tf
+    tfds = pytest.importorskip('tensorflow_datasets')
+
+    class SpeechCommands(tfds.core.GeneratorBasedBuilder, skip_registration=True):
+        VERSION = tfds.core.Version('0.0.3')
+        def _info(self):
+            return tfds.core.DatasetInfo(builder=self, features=tfds.features.FeaturesDict({
+                'audio': tfds.features.Tensor(shape=(160,), dtype=np.int16),
+                'label': tfds.features.ClassLabel(num_classes=12),
+            }))
+        def _split_generators(self, dl_manager):
+            return {'train': self._generate_examples(3), 'test': self._generate_examples(2)}
+        def _generate_examples(self, count):
+            for index in range(count):
+                yield index, {'audio': np.full(160, index, np.int16), 'label': index}
+
+    monkeypatch.setattr(tfds.core.DatasetInfo, 'initialize_from_bucket', lambda self: None)
+    source = tmp_path / 'source'
+    builder = SpeechCommands(data_dir=str(source))
+    builder.download_and_prepare(download_config=tfds.download.DownloadConfig(try_download_gcs=False))
+    (source / 'unrelated-private.txt').write_text('not dataset input')
+    def load_prepared(name, data_dir):
+        assert name == 'speech_commands'
+        return SpeechCommands(data_dir=data_dir)
+    monkeypatch.setattr(tfds, 'builder', load_prepared)
+    target = tmp_path / 'imported'
+    args = ['--dataset', 'spcm', '--root', str(target)]
+    first = prep.main([*args, '--source', str(source)])
+    assert first['metadata']['splits'] == {'train': 3, 'test': 2}
+    assert prep.main([*args, '--validate']) == first
+    assert '.prepare-' not in json.dumps(first) and str(source) not in json.dumps(first)
+    assert not (target / 'unrelated-private.txt').exists()
+    assert not list(tmp_path.glob('.prepare-*'))
+    moved = SpeechCommands(data_dir=str(target))
+    original = [int(x['label']) for x in tfds.as_numpy(builder.as_dataset(split='test', shuffle_files=False))]
+    assert [int(x['label']) for x in tfds.as_numpy(moved.as_dataset(split='test', shuffle_files=False))] == original
+
+
+def test_auxiliary_audio_import_validate_and_actual_reader(tmp_path):
+    import wave
+    from recovered_data import load_ood_audio
+    source = tmp_path / 'source'
+    source.mkdir()
+    with wave.open(str(source / 'fixture.wav'), 'wb') as stream:
+        stream.setnchannels(1); stream.setsampwidth(2); stream.setframerate(16000)
+        stream.writeframes(np.zeros(16000, np.int16).tobytes())
+    (source / 'unrelated.txt').write_text('not consumed')
+    target = tmp_path / 'imported'
+    args = ['--dataset', 'ood-audio', '--root', str(target)]
+    first = prep.main([*args, '--source', str(source)])
+    assert prep.main([*args, '--validate']) == first
+    assert not (target / 'unrelated.txt').exists()
+    assert next(iter(load_ood_audio(target, batch_size=1))).shape[0] == 1
+
+
+@pytest.mark.parametrize('width,suffix', [(1, '.wav'), (3, '.wav'), (2, '.WAV')])
+def test_auxiliary_audio_rejects_files_unsupported_by_training_reader(tmp_path, width, suffix):
+    import wave
+    source = tmp_path / 'source'
+    source.mkdir()
+    with wave.open(str(source / ('fixture' + suffix)), 'wb') as stream:
+        stream.setnchannels(1); stream.setsampwidth(width); stream.setframerate(16000)
+        stream.writeframes(bytes(16000 * width))
+    target = tmp_path / 'imported'
+    with pytest.raises(ValueError, match='16-bit|lowercase'):
+        prep.main(['--dataset', 'ood-audio', '--source', str(source), '--root', str(target)])
+    assert not target.exists()
