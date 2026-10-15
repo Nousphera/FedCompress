@@ -1,3 +1,14 @@
+# Historical dependency transcript
+
+**Historical and unmaintained — provenance only.** These pins describe the
+original research environment and can include known vulnerabilities. They are
+not a supported installation recipe and have not been made safe by archiving.
+Use the maintained installation in [README.md](../README.md).
+
+Original file: `requirements-legacy.txt`. Original SHA-256: `972e34bae7da12de8908e88d66a491b8bb8162619b0832f137d956caee1b487c`.
+The exact historical pins are preserved below as a non-installable transcript.
+
+```text
 absl-py==1.3.0
 aiohttp==3.8.3
 aiohttp-cors==0.7.0
@@ -127,3 +138,4 @@ Werkzeug==2.2.2
 wrapt==1.14.1
 yarl==1.8.2
 zipp==3.11.0
+```

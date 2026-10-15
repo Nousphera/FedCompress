@@ -12,7 +12,7 @@ Use Python 3.11 and `pip install -r requirements.txt`. The maintained path is
 Flower 1.13.1. It executes original clients, clustering, distillation and server
 strategy sequentially, passing fit instructions and responses through stock
 Flower protobuf serialization. No patched Flower or Ray cluster is needed.
-`run.py`, `configs.py` and `requirements-legacy.txt` retain the older orchestration
+`run.py`, `configs.py` and [the historical dependency transcript](HISTORICAL_REQUIREMENTS.md) retain the older orchestration
 and environment for comparison; that Ray/GPU path is not newly validated.
 
 ```bash
