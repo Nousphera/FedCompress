@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fedcompress-research"
+license-files = ["licenses/*.txt"]
 version = "0.1.0"
 description = "Adaptive weight clustering and server-side distillation"
 requires-python = ">=3.11,<3.12"

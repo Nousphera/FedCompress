@@ -145,4 +145,4 @@ Machine-readable metadata: [CITATION.cff](CITATION.cff) · [BibTeX](citation.bib
 
 ## License
 
-A project-wide license grant is not specified. The YAMNet Apache-2.0 notice is retained in [NOTICE](NOTICE); see [attribution](PROVENANCE.md). External code and datasets retain their own terms.
+Contact the authors for software reuse terms. YAMNet terms are included in [licenses/THIRD_PARTY.txt](licenses/THIRD_PARTY.txt). External datasets and models retain their own terms.

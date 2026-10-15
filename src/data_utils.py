@@ -446,7 +446,7 @@ class LoadDataset:
 	@staticmethod
 	def _get_tfds_audio(name, split, with_info=True, **kwargs):
 		import tensorflow_datasets as tfds
-		from recovered_data import prepared_tfds_identity
+		from dataset_adapters import prepared_tfds_identity
 		options = tf.data.Options()
 		options.deterministic = True
 		# Fix the interleave order so it is part of the label-cache identity.

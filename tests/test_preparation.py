@@ -90,7 +90,7 @@ def test_auxiliary_import_is_bounded_and_failed_decode_leaves_no_output(tmp_path
     target = tmp_path / "prepared"
     first = prep.main(["--dataset", "ood-images", "--source", str(source), "--root", str(target)])
     assert prep.main(["--dataset", "ood-images", "--root", str(target), "--validate"]) == first
-    from recovered_data import load_ood_images
+    from dataset_adapters import load_ood_images
     assert next(iter(load_ood_images(target, batch_size=1))).shape == (1, 32, 32, 3)
     assert not (target / "unrelated-private.txt").exists()
     bad = source / "image.jpg"
@@ -163,7 +163,7 @@ def test_tfds_import_relocation_preserves_reader_and_manifest(tmp_path, monkeypa
 
 def test_auxiliary_audio_import_validate_and_actual_reader(tmp_path):
     import wave
-    from recovered_data import load_ood_audio
+    from dataset_adapters import load_ood_audio
     source = tmp_path / 'source'
     source.mkdir()
     with wave.open(str(source / 'fixture.wav'), 'wb') as stream:

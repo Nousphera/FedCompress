@@ -1,4 +1,4 @@
-"""Exercise the real launcher with a tiny child in place of the ML runtime."""
+"""Exercise the real launcher with a short-lived child in place of the ML runtime."""
 
 import json
 import os

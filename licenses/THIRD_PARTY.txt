@@ -1,3 +1,14 @@
+FedCompress component terms
+
+YAMNet (src/architectures/YAMNet.py) adapts the TensorFlow AudioSet model.
+Copyright 2019 The TensorFlow Authors All Rights Reserved.
+Modifications include a custom classifier, configurable input shape and
+local checkpoint loading. Apache License, Version 2.0, reproduced below.
+https://github.com/tensorflow/models/tree/master/research/audioset/yamnet
+
+YAMNet-Apache-2.0.txt
+=====================
+
 Copyright 2022 Google LLC. All rights reserved.
 
 All files in the following folders:

@@ -77,7 +77,7 @@ def main(argv=None, *, driver=None, client_id=None):
         loaders = {'cifar10':get_cifar10,'cifar100':get_cifar100,'pathmnist':get_pathmnist,
                    'spcm':get_spcm,'voxforge':get_voxforge}
         loader = functools.partial(loaders[args.dataset], seed=args.seed)
-        from recovered_data import load_ood_audio, load_ood_images
+        from dataset_adapters import load_ood_audio, load_ood_images
         ood_loader = functools.partial(load_ood_audio if audio_dataset else load_ood_images, args.ood_dir)
     output.mkdir(parents=True,exist_ok=True)
     clustered = args.method != 'fedavg'

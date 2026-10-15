@@ -68,7 +68,7 @@ def test_wire_payload_is_lossless_and_compresses_clustered_weights():
         assert a.dtype==b.dtype
 
 
-def test_tiny_positive_participation_schedules_one_client():
+def test_positive_fraction_participation_schedules_one_client():
     from types import SimpleNamespace
     from server import _Server
     dataset = tf.data.Dataset.from_tensor_slices((tf.zeros((2, 4)), tf.constant([0, 1]))).batch(2)

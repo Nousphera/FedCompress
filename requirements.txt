@@ -1,4 +1,4 @@
-# Maintained CPU environment, Python 3.11. Historical transcript: docs/HISTORICAL_REQUIREMENTS.md.
+# CPU environment, Python 3.11.
 tensorflow==2.15.1
 tensorflow-model-optimization==0.7.5
 flwr==1.13.1

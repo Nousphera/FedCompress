@@ -106,7 +106,7 @@ def get_spcm(id=0, num_clients=10, return_eval_ds=False, batch_size=128, valid_s
 		ds, info = DATASETS[name]['get_data_fn'](split='train', with_info=True)
 		num_classes = info['num_classes']
 		# Load labels
-		from recovered_data import audio_labels
+		from dataset_adapters import audio_labels
 		labels = audio_labels(ds, 'speech_commands', info['num_examples'], info.get('source_identity'))
 		indexes = np.arange(labels.shape[0])
 		# Get client partition
@@ -242,7 +242,7 @@ def get_voxforge(id=0, num_clients=10, return_eval_ds=False, batch_size=128, val
 		ds, info = DATASETS[name]['get_data_fn'](split='train', with_info=True)
 		num_classes = info['num_classes']
 		# Load labels
-		from recovered_data import audio_labels
+		from dataset_adapters import audio_labels
 		labels = audio_labels(ds, name, info['num_examples'], info.get('source_identity'))
 		indexes = np.arange(labels.shape[0])
 		# Get client partition

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Adapted in the original FedCompress source; see NOTICE.
+# Adapted for FedCompress; component terms: licenses/THIRD_PARTY.txt.
 import tensorflow as tf
 from dataclasses import dataclass
 

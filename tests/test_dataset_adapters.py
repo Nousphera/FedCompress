@@ -55,7 +55,7 @@ def test_audio_adapter_trains_real_yamnet_update_on_generated_pcm(tmp_path,monke
 
 
 def test_unlabeled_wav_loader_preserves_float_audio_scale_and_partial_batch(tmp_path):
-    from recovered_data import load_ood_audio
+    from dataset_adapters import load_ood_audio
     wave=tf.sin(tf.range(16000,dtype=tf.float32)/100)[:,None]*.5
     tf.io.write_file(str(tmp_path/'sample.wav'),tf.audio.encode_wav(wave,16000))
     ds=load_ood_audio(tmp_path,batch_size=4,seed=3)

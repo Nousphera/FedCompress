@@ -15,7 +15,7 @@ import tensorflow as tf
 
 
 @pytest.mark.parametrize('dataset',['pathmnist','voxforge'])
-def test_recovered_adapter_runs_client_clustering_and_server_distillation(tmp_path,monkeypatch,dataset):
+def test_dataset_adapter_runs_client_clustering_and_server_distillation(tmp_path,monkeypatch,dataset):
     import data
     auxiliary=tmp_path/'auxiliary';auxiliary.mkdir()
     if dataset=='pathmnist':
@@ -29,7 +29,7 @@ def test_recovered_adapter_runs_client_clustering_and_server_distillation(tmp_pa
         ds=tf.data.Dataset.from_tensor_slices((np.stack([wave]*16),np.arange(16)%2))
         monkeypatch.setitem(data.DATASETS[dataset],'get_data_fn',lambda **kw:(ds,{'num_classes':6,'num_examples':16}))
         tf.io.write_file(str(auxiliary/'example.wav'),tf.audio.encode_wav(tf.cast(wave[:,None],tf.float32)/32767,16000))
-    spec=importlib.util.spec_from_file_location('recovered_runner',ROOT/'train.py')
+    spec=importlib.util.spec_from_file_location('dataset_runner',ROOT/'train.py')
     runner=importlib.util.module_from_spec(spec);spec.loader.exec_module(runner)
     report=runner.main(['--dataset',dataset,'--data-root',str(tmp_path),'--ood-dir',str(auxiliary),
         '--clients','2','--rounds','1','--epochs','1','--warmup-epochs','0','--server-epochs','1',
